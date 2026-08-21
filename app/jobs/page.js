@@ -67,7 +67,31 @@ const supabase =
     loadAll();
   }, []);
 
-  async function uploadImages(files, userId) {
+  async function ensureProfile(authUser) {
+  const { data: existing, error: readError } = await supabase
+    .from("profiles")
+    .select("id, role")
+    .eq("id", authUser.id)
+    .maybeSingle();
+
+  if (readError) throw readError;
+  if (existing) return existing;
+
+  const role =
+    authUser.user_metadata?.role === "pro" ? "pro" : "buyer";
+
+  const { data: created, error: createError } = await supabase
+    .from("profiles")
+    .insert({
+      id: authUser.id,
+      role
+    })
+    .select("id, role")
+    .single();
+
+  if (createError) throw createError;
+  return created;
+}async function uploadImages(files, userId) {
     const urls = [];
 
     for (const file of files) {
