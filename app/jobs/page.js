@@ -78,7 +78,7 @@ const supabase =
   if (existing) return existing;
 
   const role =
-    authUser.user_metadata?.role === "pro" ? "pro" : "buyer";
+    authUser.user_metadata?.role === "pro" ? "pro" : "customer";
 
   const { data: created, error: createError } = await supabase
     .from("profiles")
