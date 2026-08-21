@@ -35,11 +35,7 @@ const supabase =
     const { data: auth } = await supabase.auth.getUser();
 
     if (auth.user) {
-      const { data: p } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", auth.user.id)
-        .maybeSingle();
+      const p = await ensureProfile(auth.user);
 
       setUserProfile(p);
 
