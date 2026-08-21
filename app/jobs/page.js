@@ -101,7 +101,7 @@ const supabase =
 
     if (!auth.user) {
       return setMessage("Za objavu posla prvo se prijavi.");
-    }
+    }await ensureProfile(auth.user);
 
     let imageUrls = [];
     let latitude = null;
