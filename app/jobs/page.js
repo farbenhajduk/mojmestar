@@ -101,7 +101,7 @@ const supabase =
 
     if (!auth.user) {
       return setMessage("Za objavu posla prvo se prijavi.");
-    }await ensureProfile(auth.user);
+    }
 
     let imageUrls = [];
     let latitude = null;
@@ -115,7 +115,8 @@ const supabase =
       return setMessage("Možete dodati najviše 5 fotografija.");
     }
 
-    try {
+    try {await ensureProfile(auth.user);
+        
       const geoRes = await fetch("/api/geocode", {
         method: "POST",
         headers: { "content-type": "application/json" },
