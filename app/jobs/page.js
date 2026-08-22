@@ -251,6 +251,10 @@ const supabase =
 
   await loadAll();
 }
+
+const visibleJobs = useMemo(() => {
+  return jobs.filter(j => {
+}
     return jobs.filter(j => {
       const cityOk =
         !filterCity ||
