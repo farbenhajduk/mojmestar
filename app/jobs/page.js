@@ -217,42 +217,40 @@ const supabase =
   }
 
   async function unlockContact(job) {
-    const { data, error } = await supabase.rpc(
-      "unlock_job_contact",
-      {
-        p_job_id: job.id
-      }
-    );
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    if (data?.already_unlocked) {
-  const { data: contactData, error: contactError } = await supabase.rpc(
-    "get_unlocked_job_contact",
+  const { data, error } = await supabase.rpc(
+    "unlock_job_contact",
     { p_job_id: job.id }
-  );alert(JSON.stringify(contactData));
+  );
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  const { data: contactData, error: contactError } =
+    await supabase.rpc("get_unlocked_job_contact", {
+      p_job_id: job.id
+    });
 
   if (contactError) {
     alert(contactError.message);
     return;
   }
 
-  alert(
-    `Kontakt je već otključan.\nTelefon: ${
-      contactData?.phone ?? "Nije dostupan"
-    }`
-  );
+  const phone = contactData?.phone ?? "Nije dostupan";
 
-    
-    
-
-    await loadAll();
+  if (data?.already_unlocked) {
+    alert(`Kontakt je već otključan.\nTelefon: ${phone}`);
+  } else {
+    alert(
+      `Kontakt je otključan. Potrošeno kredita: ${
+        data?.credits_spent ?? ""
+      }\nTelefon: ${phone}`
+    );
   }
 
-  const visibleJobs = useMemo(() => {
+  await loadAll();
+}
     return jobs.filter(j => {
       const cityOk =
         !filterCity ||
