@@ -254,8 +254,8 @@ const supabase =
 
 const visibleJobs = useMemo(() => {
   return jobs.filter(j => {
-}
-    return jobs.filter(j => {
+
+    
       const cityOk =
         !filterCity ||
         j.city?.toLowerCase().includes(filterCity.toLowerCase());
