@@ -230,7 +230,22 @@ const supabase =
     }
 
     if (data?.already_unlocked) {
-      alert(`Kontakt je već otključan.\nTelefon: ${data?.phone ?? "Nije dostupan"}`);
+  const { data: contactData, error: contactError } = await supabase.rpc(
+    "get_unlocked_job_contact",
+    { p_job_id: job.id }
+  );
+
+  if (contactError) {
+    alert(contactError.message);
+    return;
+  }
+
+  alert(
+    `Kontakt je već otključan.\nTelefon: ${
+      contactData?.phone ?? "Nije dostupan"
+    }`
+  );
+}
     } else {
       alert(
         `Kontakt je otključan. Potrošeno kredita: ${
