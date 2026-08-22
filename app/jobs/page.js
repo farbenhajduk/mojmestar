@@ -230,7 +230,7 @@ const supabase =
     }
 
     if (data?.already_unlocked) {
-      alert("Kontakt je već otključan.");
+      alert(`Kontakt je već otključan.\nTelefon: ${data?.phone ?? "Nije dostupan"}`);
     } else {
       alert(
         `Kontakt je otključan. Potrošeno kredita: ${
