@@ -239,6 +239,7 @@ const supabase =
   }
 
   const phone = contactData?.phone ?? "Nije dostupan";
+    setUnlockedPhones(prev => ({ ...prev, [job.id]: phone }));
 
   if (data?.already_unlocked) {
     alert(`Kontakt je već otključan.\nTelefon: ${phone}`);
