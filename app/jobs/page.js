@@ -245,7 +245,7 @@ const supabase =
       contactData?.phone ?? "Nije dostupan"
     }`
   );
-}
+
     } else {
       alert(
         `Kontakt je otključan. Potrošeno kredita: ${
