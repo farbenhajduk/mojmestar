@@ -22,6 +22,7 @@ export default function JobsPage() {
   const [proProfile, setProProfile] = useState(null);
   const [filterCity, setFilterCity] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
+  const [unlockedPhones, setUnlockedPhones] = useState({});
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
