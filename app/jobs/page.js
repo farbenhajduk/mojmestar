@@ -246,13 +246,8 @@ const supabase =
     }`
   );
 
-    } else {
-      alert(
-        `Kontakt je otključan. Potrošeno kredita: ${
-          data?.credits_spent ?? ""
-        }`
-      );
-    }
+    
+    
 
     await loadAll();
   }
