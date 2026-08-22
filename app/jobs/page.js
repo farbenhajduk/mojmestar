@@ -233,7 +233,7 @@ const supabase =
   const { data: contactData, error: contactError } = await supabase.rpc(
     "get_unlocked_job_contact",
     { p_job_id: job.id }
-  );
+  );alert(JSON.stringify(contactData));
 
   if (contactError) {
     alert(contactError.message);
