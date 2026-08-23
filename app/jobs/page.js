@@ -447,14 +447,18 @@ const visibleJobs = useMemo(() => {
                       </button>
 
                       {userProfile?.role === "pro" && (
-                        <button
-                          className="button small"
-                          onClick={() =>
-                            unlockContact(j)
-                          }
-                        >
-                          Otključaj kontakt
-                        </button>
+                      {unlockedPhones[j.id] ? (
+  <div className="button small">
+    Telefon: {unlockedPhones[j.id]}
+  </div>
+) : (
+  <button
+    className="button small"
+    onClick={() => unlockContact(j)}
+  >
+    Otključaj kontakt
+  </button>
+)}
                       )}
                     </div>
                   </div>
