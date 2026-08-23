@@ -26,11 +26,8 @@ export default function JobsPage() {
   const [unlockedPhones, setUnlockedPhones] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
-  const supabaseUrl =
-    process.env.NEXT_PUBLIC_SUPABASE_URL;
-
-  const supabaseKey =
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   const supabase = useMemo(() => {
     if (!supabaseUrl || !supabaseKey) return null;
@@ -206,10 +203,7 @@ export default function JobsPage() {
     loadAll();
   }, [supabase]);
 
-  async function uploadImages(
-    files,
-    userId
-  ) {
+  async function uploadImages(files, userId) {
     const urls = [];
 
     for (const file of files) {
@@ -251,10 +245,7 @@ export default function JobsPage() {
   async function submit(e) {
     e.preventDefault();
 
-    if (
-      !supabase ||
-      submitting
-    ) {
+    if (!supabase || submitting) {
       return;
     }
 
@@ -269,8 +260,7 @@ export default function JobsPage() {
 
     try {
       const { data: authData } =
-        await supabase.auth
-          .getUser();
+        await supabase.auth.getUser();
 
       const authUser =
         authData?.user;
@@ -283,13 +273,9 @@ export default function JobsPage() {
       }
 
       const profile =
-        await ensureProfile(
-          authUser
-        );
+        await ensureProfile(authUser);
 
-      if (
-        profile?.role === "pro"
-      ) {
+      if (profile?.role === "pro") {
         setMessage(
           "Profil majstora ne može objavljivati posao."
         );
@@ -305,9 +291,7 @@ export default function JobsPage() {
             file.size
         );
 
-      if (
-        files.length > 5
-      ) {
+      if (files.length > 5) {
         setMessage(
           "Možete dodati najviše 5 fotografija."
         );
@@ -331,17 +315,11 @@ export default function JobsPage() {
               body:
                 JSON.stringify({
                   address:
-                    f.get(
-                      "address"
-                    ),
+                    f.get("address"),
                   city:
-                    f.get(
-                      "city"
-                    ),
+                    f.get("city"),
                   zip:
-                    f.get(
-                      "zip"
-                    )
+                    f.get("zip")
                 })
             }
           );
@@ -379,42 +357,23 @@ export default function JobsPage() {
           .insert({
             customer_id:
               authUser.id,
-
             category:
-              f.get(
-                "category"
-              ),
-
+              f.get("category"),
             city:
-              f.get("city")
-                ?.trim(),
-
+              f.get("city")?.trim(),
             zip:
-              f.get("zip")
-                ?.trim(),
-
+              f.get("zip")?.trim(),
             description:
-              f.get(
-                "description"
-              )?.trim(),
-
+              f.get("description")?.trim(),
             address:
-              f.get(
-                "address"
-              )?.trim() ||
+              f.get("address")?.trim() ||
               null,
-
             desired_start:
-              f.get(
-                "desired_start"
-              ),
-
+              f.get("desired_start"),
             latitude,
             longitude,
-
             image_urls:
               imageUrls,
-
             status:
               "open"
           });
@@ -457,24 +416,21 @@ export default function JobsPage() {
 
     const confirmed =
       window.confirm(
-        "Želite li zatvoriti ovaj posao?"
+        "Želite li zatvoriti ovaj posao? Posao će biti uklonjen iz aktivnih poslova."
       );
 
     if (!confirmed) return;
 
     try {
-      const {
-        error
-      } = await supabase
-        .from("jobs")
-        .update({
-          status: "closed"
-        })
-        .eq("id", job.id)
-        .eq(
-          "customer_id",
-          currentUserId
-        );
+      const { error } =
+        await supabase
+          .from("jobs")
+          .delete()
+          .eq("id", job.id)
+          .eq(
+            "customer_id",
+            currentUserId
+          );
 
       if (error) {
         throw error;
@@ -516,16 +472,15 @@ export default function JobsPage() {
     if (!confirmed) return;
 
     try {
-      const {
-        error
-      } = await supabase
-        .from("jobs")
-        .delete()
-        .eq("id", job.id)
-        .eq(
-          "customer_id",
-          currentUserId
-        );
+      const { error } =
+        await supabase
+          .from("jobs")
+          .delete()
+          .eq("id", job.id)
+          .eq(
+            "customer_id",
+            currentUserId
+          );
 
       if (error) {
         throw error;
@@ -546,14 +501,11 @@ export default function JobsPage() {
     }
   }
 
-  async function showInterest(
-    job
-  ) {
+  async function showInterest(job) {
     if (!supabase) return;
 
     const { data: authData } =
-      await supabase.auth
-        .getUser();
+      await supabase.auth.getUser();
 
     const authUser =
       authData?.user;
@@ -570,13 +522,9 @@ export default function JobsPage() {
 
     if (!profile) {
       profile =
-        await ensureProfile(
-          authUser
-        );
+        await ensureProfile(authUser);
 
-      setUserProfile(
-        profile
-      );
+      setUserProfile(profile);
     }
 
     if (
@@ -604,18 +552,15 @@ export default function JobsPage() {
         .insert({
           job_id:
             job.id,
-
           pro_id:
             authUser.id,
-
           message:
             note.trim()
         });
 
     if (error) {
       if (
-        error.code ===
-        "23505"
+        error.code === "23505"
       ) {
         alert(
           "Već ste iskazali interes za ovaj posao."
@@ -634,19 +579,14 @@ export default function JobsPage() {
     );
   }
 
-  async function unlockContact(
-    job
-  ) {
+  async function unlockContact(job) {
     if (!supabase) return;
 
     try {
       const { data: authData } =
-        await supabase.auth
-          .getUser();
+        await supabase.auth.getUser();
 
-      if (
-        !authData?.user
-      ) {
+      if (!authData?.user) {
         alert(
           "Prvo se prijavite."
         );
@@ -735,8 +675,7 @@ export default function JobsPage() {
             job.city
               ?.toLowerCase()
               .includes(
-                filterCity
-                  .toLowerCase()
+                filterCity.toLowerCase()
               );
 
           const categoryOk =
@@ -750,22 +689,20 @@ export default function JobsPage() {
           if (
             userProfile?.role ===
               "pro" &&
-            proProfile
-              ?.latitude != null &&
-            proProfile
-              ?.longitude != null &&
+            proProfile?.latitude !=
+              null &&
+            proProfile?.longitude !=
+              null &&
             job.latitude != null &&
             job.longitude != null
           ) {
             const distance =
               haversineKm(
                 Number(
-                  proProfile
-                    .latitude
+                  proProfile.latitude
                 ),
                 Number(
-                  proProfile
-                    .longitude
+                  proProfile.longitude
                 ),
                 Number(
                   job.latitude
@@ -777,14 +714,12 @@ export default function JobsPage() {
 
             const radius =
               Number(
-                proProfile
-                  .service_radius_km
+                proProfile.service_radius_km
               ) || 50;
 
             radiusOk =
               distance == null ||
-              distance <=
-                radius;
+              distance <= radius;
           }
 
           return (
@@ -807,9 +742,7 @@ export default function JobsPage() {
       <main className="section">
         <div className="container">
           <p>
-            Aplikacija nije
-            ispravno
-            konfigurirana.
+            Aplikacija nije ispravno konfigurirana.
           </p>
         </div>
       </main>
@@ -843,16 +776,10 @@ export default function JobsPage() {
                   {categories.map(
                     category => (
                       <option
-                        key={
-                          category
-                        }
-                        value={
-                          category
-                        }
+                        key={category}
+                        value={category}
                       >
-                        {
-                          category
-                        }
+                        {category}
                       </option>
                     )
                   )}
@@ -902,35 +829,26 @@ export default function JobsPage() {
                 <select
                   name="desired_start"
                 >
-                  <option
-                    value="Što prije"
-                  >
+                  <option value="Što prije">
                     Što prije
                   </option>
 
-                  <option
-                    value="U roku od mjesec dana"
-                  >
+                  <option value="U roku od mjesec dana">
                     U roku od mjesec dana
                   </option>
 
-                  <option
-                    value="Za 1–3 mjeseca"
-                  >
+                  <option value="Za 1–3 mjeseca">
                     Za 1–3 mjeseca
                   </option>
 
-                  <option
-                    value="Samo prikupljam ponude"
-                  >
+                  <option value="Samo prikupljam ponude">
                     Samo prikupljam ponude
                   </option>
                 </select>
               </label>
 
               <label>
-                Fotografije
-                (max 5)
+                Fotografije (max 5)
 
                 <input
                   name="images"
@@ -943,9 +861,7 @@ export default function JobsPage() {
               <button
                 className="button"
                 type="submit"
-                disabled={
-                  submitting
-                }
+                disabled={submitting}
               >
                 {submitting
                   ? "Objavljujem..."
@@ -972,20 +888,14 @@ export default function JobsPage() {
             {userProfile?.role ===
               "pro" && (
               <p className="muted">
-                Ako su spremljene
-                koordinate,
-                prikazuju se samo
-                poslovi unutar vašeg
-                radijusa.
+                Ako su spremljene koordinate, prikazuju se samo poslovi unutar vašeg radijusa.
               </p>
             )}
 
             <div className="filters">
               <input
                 placeholder="Filtriraj po gradu"
-                value={
-                  filterCity
-                }
+                value={filterCity}
                 onChange={e =>
                   setFilterCity(
                     e.target.value
@@ -994,9 +904,7 @@ export default function JobsPage() {
               />
 
               <select
-                value={
-                  filterCategory
-                }
+                value={filterCategory}
                 onChange={e =>
                   setFilterCategory(
                     e.target.value
@@ -1010,16 +918,10 @@ export default function JobsPage() {
                 {categories.map(
                   category => (
                     <option
-                      key={
-                        category
-                      }
-                      value={
-                        category
-                      }
+                      key={category}
+                      value={category}
                     >
-                      {
-                        category
-                      }
+                      {category}
                     </option>
                   )
                 )}
@@ -1037,14 +939,10 @@ export default function JobsPage() {
                   return (
                     <article
                       className="card"
-                      key={
-                        job.id
-                      }
+                      key={job.id}
                     >
                       <span className="badge">
-                        {
-                          job.category
-                        }
+                        {job.category}
                       </span>
 
                       <h3>
@@ -1054,25 +952,17 @@ export default function JobsPage() {
                       </h3>
 
                       <p>
-                        {
-                          job.description
-                        }
+                        {job.description}
                       </p>
 
-                      {job
-                        .image_urls
-                        ?.length >
+                      {job.image_urls?.length >
                         0 && (
                         <div className="imageStrip">
                           {job.image_urls.map(
                             url => (
                               <img
-                                src={
-                                  url
-                                }
-                                key={
-                                  url
-                                }
+                                src={url}
+                                key={url}
                                 alt="Fotografija posla"
                               />
                             )
@@ -1082,9 +972,7 @@ export default function JobsPage() {
 
                       <div className="rowBetween">
                         <small>
-                          {
-                            job.desired_start
-                          }
+                          {job.desired_start}
                         </small>
 
                         <div
@@ -1103,9 +991,7 @@ export default function JobsPage() {
                                 type="button"
                                 className="button small"
                                 onClick={() =>
-                                  closeJob(
-                                    job
-                                  )
+                                  closeJob(job)
                                 }
                               >
                                 Zatvori posao
@@ -1115,9 +1001,7 @@ export default function JobsPage() {
                                 type="button"
                                 className="button small"
                                 onClick={() =>
-                                  deleteJob(
-                                    job
-                                  )
+                                  deleteJob(job)
                                 }
                               >
                                 Izbriši posao
@@ -1133,9 +1017,7 @@ export default function JobsPage() {
                                   type="button"
                                   className="button small"
                                   onClick={() =>
-                                    showInterest(
-                                      job
-                                    )
+                                    showInterest(job)
                                   }
                                 >
                                   Zanima me posao
@@ -1156,8 +1038,7 @@ export default function JobsPage() {
                                     Telefon:{" "}
                                     {
                                       unlockedPhones[
-                                        job
-                                          .id
+                                        job.id
                                       ]
                                     }
                                   </a>
@@ -1166,9 +1047,7 @@ export default function JobsPage() {
                                     type="button"
                                     className="button small"
                                     onClick={() =>
-                                      unlockContact(
-                                        job
-                                      )
+                                      unlockContact(job)
                                     }
                                   >
                                     Otključaj kontakt
@@ -1185,8 +1064,7 @@ export default function JobsPage() {
 
               {!visibleJobs.length && (
                 <p>
-                  Nema poslova za
-                  odabrani filter.
+                  Nema poslova za odabrani filter.
                 </p>
               )}
             </div>
