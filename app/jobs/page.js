@@ -443,6 +443,7 @@ const visibleJobs = useMemo(() => {
                       </button>
 
                       {userProfile?.role === "pro" && (
+                        <>
                       {unlockedPhones[j.id] ? (
   <div className="button small">
     Telefon: {unlockedPhones[j.id]}
@@ -454,6 +455,7 @@ const visibleJobs = useMemo(() => {
   >
     Otključaj kontakt
   </button>
+</>
 )}
                       )}
                     </div>
