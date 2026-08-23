@@ -5,7 +5,11 @@
   --muted: #6f7782;
   --border: #dfe3e8;
   --accent: #18202b;
+  --accent-soft: #eef1f4;
+  --danger: #b42318;
   --radius: 18px;
+  --radius-small: 12px;
+  --shadow: 0 8px 24px rgba(24, 32, 43, 0.06);
 }
 
 * {
@@ -22,11 +26,19 @@ body {
   color: var(--text);
   font-family: Arial, Helvetica, sans-serif;
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
 a {
   color: inherit;
   text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
 }
 
 img {
@@ -45,6 +57,8 @@ img {
   position: sticky;
   top: 0;
   z-index: 20;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .headerInner {
@@ -91,9 +105,15 @@ h2 {
   margin: 10px 0 26px;
   font-size: clamp(2rem, 5vw, 3.5rem);
   letter-spacing: -0.05em;
+  line-height: 1;
 }
 
 h3 {
+  margin: 0 0 10px;
+  line-height: 1.2;
+}
+
+p {
   margin-top: 0;
 }
 
@@ -120,7 +140,7 @@ h3 {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 28px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  box-shadow: var(--shadow);
 }
 
 .actions,
@@ -141,25 +161,41 @@ h3 {
   border-radius: 14px;
   background: var(--accent);
   color: #fff;
-  padding: 16px 24px;
+  min-height: 48px;
+  padding: 14px 20px;
   font: inherit;
   font-weight: 800;
+  line-height: 1.2;
   cursor: pointer;
   display: inline-flex;
   justify-content: center;
   align-items: center;
+  text-align: center;
+  transition:
+    transform 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.button:active {
+  transform: scale(0.98);
+}
+
+.button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .button.secondary {
-  background: #eef1f4;
+  background: var(--accent-soft);
   color: var(--text);
   border: 1px solid var(--border);
 }
 
 .button.small {
-  padding: 10px 14px;
+  min-height: 44px;
+  padding: 11px 14px;
   border-radius: 10px;
-  font-size: 0.9rem;
+  font-size: 0.92rem;
 }
 
 .grid {
@@ -196,16 +232,30 @@ input,
 select,
 textarea {
   width: 100%;
+  min-height: 48px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-small);
   background: #fff;
   color: var(--text);
   padding: 13px 14px;
   font: inherit;
+  font-size: 16px;
+  outline: none;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 textarea {
+  min-height: 120px;
   resize: vertical;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #9aa3ad;
+  box-shadow: 0 0 0 3px rgba(24, 32, 43, 0.08);
 }
 
 .stickyCard {
@@ -213,16 +263,30 @@ textarea {
   top: 100px;
 }
 
+.filters {
+  margin-bottom: 20px;
+}
+
+.filters > * {
+  flex: 1 1 180px;
+}
+
 .jobList {
   display: grid;
-  gap: 16px;
+  gap: 18px;
   margin-top: 22px;
+}
+
+.jobList .card {
+  display: grid;
+  gap: 12px;
 }
 
 .badge {
   display: inline-block;
+  width: fit-content;
   border-radius: 999px;
-  background: #eef1f4;
+  background: var(--accent-soft);
   padding: 7px 10px;
   font-size: 0.82rem;
   font-weight: 800;
@@ -231,7 +295,7 @@ textarea {
 .rowBetween {
   align-items: center;
   justify-content: space-between;
-  margin-top: 18px;
+  margin-top: 6px;
 }
 
 .muted,
@@ -243,19 +307,25 @@ small {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
-  margin-top: 14px;
+  margin-top: 4px;
 }
 
 .imageStrip img {
   width: 100%;
-  height: 110px;
+  aspect-ratio: 1 / 1;
+  height: auto;
   object-fit: cover;
   border-radius: 10px;
+  border: 1px solid var(--border);
 }
 
 @media (max-width: 820px) {
+  .container {
+    width: min(100% - 24px, 1120px);
+  }
+
   .hero {
-    padding-top: 52px;
+    padding: 48px 0 36px;
   }
 
   .heroGrid,
@@ -264,16 +334,29 @@ small {
     grid-template-columns: 1fr;
   }
 
+  .twoCol {
+    gap: 22px;
+  }
+
   .grid {
     gap: 12px;
   }
 
+  .section {
+    padding: 34px 0;
+  }
+
   .headerInner {
-    min-height: 68px;
+    min-height: 64px;
+    gap: 12px;
+  }
+
+  .brand {
+    font-size: 1.25rem;
   }
 
   .nav {
-    gap: 10px;
+    gap: 8px;
     font-size: 0.9rem;
   }
 
@@ -281,11 +364,107 @@ small {
     display: none;
   }
 
+  .nav .button {
+    min-height: 42px;
+    padding: 10px 13px;
+    font-size: 0.88rem;
+  }
+
   .stickyCard {
     position: static;
   }
 
   .card {
-    padding: 22px;
+    padding: 20px;
+    border-radius: 16px;
+  }
+
+  h1 {
+    font-size: clamp(2.4rem, 13vw, 4rem);
+    line-height: 0.95;
+  }
+
+  h2 {
+    font-size: clamp(2rem, 10vw, 3rem);
+    margin-bottom: 20px;
+  }
+
+  .form {
+    gap: 16px;
+  }
+
+  .button {
+    width: 100%;
+    min-height: 50px;
+  }
+
+  .button.small {
+    width: 100%;
+    min-height: 46px;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .filters {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .rowBetween {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    gap: 14px;
+  }
+
+  .rowBetween > div {
+    width: 100%;
+  }
+
+  .rowBetween > div .button,
+  .rowBetween > div a.button {
+    width: 100%;
+  }
+
+  .jobList {
+    gap: 14px;
+  }
+
+  .jobList .card {
+    padding: 18px;
+  }
+
+  .imageStrip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    width: min(100% - 20px, 1120px);
+  }
+
+  .section {
+    padding: 28px 0;
+  }
+
+  .card {
+    padding: 16px;
+  }
+
+  .jobList .card {
+    padding: 16px;
+  }
+
+  .imageStrip {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .eyebrow {
+    font-size: 0.75rem;
   }
 }
