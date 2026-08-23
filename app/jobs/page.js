@@ -458,7 +458,7 @@ const visibleJobs = useMemo(() => {
       )}
 </>
 )}
-                      )}
+                      
                     </div>
                   </div>
                 </article>
