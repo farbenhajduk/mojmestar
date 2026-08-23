@@ -20,35 +20,52 @@ export default function JobsPage() {
   const [message, setMessage] = useState("");
   const [userProfile, setUserProfile] = useState(null);
   const [proProfile, setProProfile] = useState(null);
+  const [currentUserId, setCurrentUserId] = useState(null);
   const [filterCity, setFilterCity] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [unlockedPhones, setUnlockedPhones] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseUrl =
+    process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+  const supabaseKey =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   const supabase = useMemo(() => {
     if (!supabaseUrl || !supabaseKey) return null;
-    return createBrowserClient(supabaseUrl, supabaseKey);
+
+    return createBrowserClient(
+      supabaseUrl,
+      supabaseKey
+    );
   }, [supabaseUrl, supabaseKey]);
 
   async function ensureProfile(authUser) {
     if (!supabase) return null;
 
-    const { data: existing, error: readError } = await supabase
+    const {
+      data: existing,
+      error: readError
+    } = await supabase
       .from("profiles")
       .select("id, role")
       .eq("id", authUser.id)
       .maybeSingle();
 
     if (readError) throw readError;
+
     if (existing) return existing;
 
     const role =
-      authUser.user_metadata?.role === "pro" ? "pro" : "customer";
+      authUser.user_metadata?.role === "pro"
+        ? "pro"
+        : "customer";
 
-    const { data: created, error: createError } = await supabase
+    const {
+      data: created,
+      error: createError
+    } = await supabase
       .from("profiles")
       .insert({
         id: authUser.id,
@@ -58,30 +75,48 @@ export default function JobsPage() {
       .single();
 
     if (createError) throw createError;
+
     return created;
   }
 
   async function loadAll() {
     if (!supabase) {
-      setMessage("Aplikacija nije ispravno konfigurirana.");
+      setMessage(
+        "Aplikacija nije ispravno konfigurirana."
+      );
       return;
     }
 
     try {
-      const { data: authData } = await supabase.auth.getUser();
-      const authUser = authData?.user || null;
+      const { data: authData } =
+        await supabase.auth.getUser();
+
+      const authUser =
+        authData?.user || null;
+
+      setCurrentUserId(
+        authUser?.id || null
+      );
 
       let profile = null;
 
       if (authUser) {
-        profile = await ensureProfile(authUser);
+        profile =
+          await ensureProfile(authUser);
+
         setUserProfile(profile);
 
         if (profile?.role === "pro") {
-          const { data: pp, error: ppError } = await supabase
+          const {
+            data: pp,
+            error: ppError
+          } = await supabase
             .from("pro_profiles")
             .select("*")
-            .eq("user_id", authUser.id)
+            .eq(
+              "user_id",
+              authUser.id
+            )
             .maybeSingle();
 
           if (!ppError) {
@@ -95,47 +130,75 @@ export default function JobsPage() {
         setProProfile(null);
       }
 
-      const { data, error } = await supabase
+      const {
+        data,
+        error
+      } = await supabase
         .from("jobs")
         .select("*")
         .eq("status", "open")
-        .order("created_at", { ascending: false });
+        .order(
+          "created_at",
+          { ascending: false }
+        );
 
       if (error) throw error;
 
-      const loadedJobs = data || [];
+      const loadedJobs =
+        data || [];
+
       setJobs(loadedJobs);
 
-      if (authUser && profile?.role === "pro") {
-        const results = await Promise.all(
-          loadedJobs.map(async job => {
-            const {
-              data: contactData,
-              error: contactError
-            } = await supabase.rpc(
-              "get_unlocked_job_contact",
-              {
-                p_job_id: job.id
+      if (
+        authUser &&
+        profile?.role === "pro"
+      ) {
+        const results =
+          await Promise.all(
+            loadedJobs.map(
+              async job => {
+                const {
+                  data: contactData,
+                  error: contactError
+                } =
+                  await supabase.rpc(
+                    "get_unlocked_job_contact",
+                    {
+                      p_job_id:
+                        job.id
+                    }
+                  );
+
+                if (
+                  contactError ||
+                  !contactData?.phone
+                ) {
+                  return null;
+                }
+
+                return [
+                  job.id,
+                  contactData.phone
+                ];
               }
-            );
-
-            if (contactError || !contactData?.phone) {
-              return null;
-            }
-
-            return [job.id, contactData.phone];
-          })
-        );
+            )
+          );
 
         setUnlockedPhones(
-          Object.fromEntries(results.filter(Boolean))
+          Object.fromEntries(
+            results.filter(Boolean)
+          )
         );
       } else {
         setUnlockedPhones({});
       }
     } catch (err) {
       console.error(err);
-      setMessage(err?.message || "Greška pri učitavanju.");
+
+      setMessage(
+        err?.message ||
+          "Greška pri učitavanju."
+      );
     }
   }
 
@@ -143,26 +206,42 @@ export default function JobsPage() {
     loadAll();
   }, [supabase]);
 
-  async function uploadImages(files, userId) {
+  async function uploadImages(
+    files,
+    userId
+  ) {
     const urls = [];
 
     for (const file of files) {
-      const ext = file.name.split(".").pop() || "jpg";
+      const ext =
+        file.name
+          .split(".")
+          .pop() || "jpg";
+
       const fileName =
         `${userId}/${crypto.randomUUID()}.${ext}`;
 
-      const { error } = await supabase.storage
-        .from("job-images")
-        .upload(fileName, file);
+      const { error } =
+        await supabase.storage
+          .from("job-images")
+          .upload(
+            fileName,
+            file
+          );
 
       if (error) throw error;
 
-      const { data } = supabase.storage
-        .from("job-images")
-        .getPublicUrl(fileName);
+      const { data } =
+        supabase.storage
+          .from("job-images")
+          .getPublicUrl(
+            fileName
+          );
 
       if (data?.publicUrl) {
-        urls.push(data.publicUrl);
+        urls.push(
+          data.publicUrl
+        );
       }
     }
 
@@ -172,39 +251,63 @@ export default function JobsPage() {
   async function submit(e) {
     e.preventDefault();
 
-    if (!supabase || submitting) return;
+    if (
+      !supabase ||
+      submitting
+    ) {
+      return;
+    }
 
     setMessage("");
     setSubmitting(true);
 
-    const formEl = e.currentTarget;
-    const f = new FormData(formEl);
+    const formEl =
+      e.currentTarget;
+
+    const f =
+      new FormData(formEl);
 
     try {
       const { data: authData } =
-        await supabase.auth.getUser();
+        await supabase.auth
+          .getUser();
 
-      const authUser = authData?.user;
+      const authUser =
+        authData?.user;
 
       if (!authUser) {
-        setMessage("Za objavu posla prvo se prijavi.");
+        setMessage(
+          "Za objavu posla prvo se prijavi."
+        );
         return;
       }
 
-      const profile = await ensureProfile(authUser);
+      const profile =
+        await ensureProfile(
+          authUser
+        );
 
-      if (profile?.role === "pro") {
+      if (
+        profile?.role === "pro"
+      ) {
         setMessage(
           "Profil majstora ne može objavljivati posao."
         );
         return;
       }
 
-      const files = Array.from(
-        f.getAll("images")
-      ).filter(file => file && file.size);
+      const files =
+        Array.from(
+          f.getAll("images")
+        ).filter(
+          file =>
+            file &&
+            file.size
+        );
 
-      if (files.length > 5) {
+      if (
+        files.length > 5
+      ) {
         setMessage(
           "Možete dodati najviše 5 fotografija."
         );
@@ -216,22 +319,44 @@ export default function JobsPage() {
       let longitude = null;
 
       try {
-        const geoRes = await fetch("/api/geocode", {
-          method: "POST",
-          headers: {
-            "content-type": "application/json"
-          },
-          body: JSON.stringify({
-            address: f.get("address"),
-            city: f.get("city"),
-            zip: f.get("zip")
-          })
-        });
+        const geoRes =
+          await fetch(
+            "/api/geocode",
+            {
+              method: "POST",
+              headers: {
+                "content-type":
+                  "application/json"
+              },
+              body:
+                JSON.stringify({
+                  address:
+                    f.get(
+                      "address"
+                    ),
+                  city:
+                    f.get(
+                      "city"
+                    ),
+                  zip:
+                    f.get(
+                      "zip"
+                    )
+                })
+            }
+          );
 
         if (geoRes.ok) {
-          const geo = await geoRes.json();
-          latitude = geo?.latitude ?? null;
-          longitude = geo?.longitude ?? null;
+          const geo =
+            await geoRes.json();
+
+          latitude =
+            geo?.latitude ??
+            null;
+
+          longitude =
+            geo?.longitude ??
+            null;
         }
       } catch (geoError) {
         console.warn(
@@ -241,156 +366,359 @@ export default function JobsPage() {
       }
 
       if (files.length) {
-        imageUrls = await uploadImages(
-          files,
-          authUser.id
-        );
+        imageUrls =
+          await uploadImages(
+            files,
+            authUser.id
+          );
       }
 
-      const { error } = await supabase
-        .from("jobs")
-        .insert({
-          customer_id: authUser.id,
-          category: f.get("category"),
-          city: f.get("city")?.trim(),
-          zip: f.get("zip")?.trim(),
-          description: f.get("description")?.trim(),
-          address: f.get("address")?.trim() || null,
-          desired_start: f.get("desired_start"),
-          latitude,
-          longitude,
-          image_urls: imageUrls,
-          status: "open"
-        });
+      const { error } =
+        await supabase
+          .from("jobs")
+          .insert({
+            customer_id:
+              authUser.id,
 
-      if (error) throw error;
+            category:
+              f.get(
+                "category"
+              ),
+
+            city:
+              f.get("city")
+                ?.trim(),
+
+            zip:
+              f.get("zip")
+                ?.trim(),
+
+            description:
+              f.get(
+                "description"
+              )?.trim(),
+
+            address:
+              f.get(
+                "address"
+              )?.trim() ||
+              null,
+
+            desired_start:
+              f.get(
+                "desired_start"
+              ),
+
+            latitude,
+            longitude,
+
+            image_urls:
+              imageUrls,
+
+            status:
+              "open"
+          });
+
+      if (error) {
+        throw error;
+      }
 
       formEl.reset();
-      setMessage("Posao je objavljen.");
+
+      setMessage(
+        "Posao je objavljen."
+      );
 
       await loadAll();
     } catch (err) {
       console.error(err);
+
       setMessage(
-        err?.message || "Objava posla nije uspjela."
+        err?.message ||
+          "Objava posla nije uspjela."
       );
     } finally {
       setSubmitting(false);
     }
   }
 
-  async function showInterest(job) {
+  async function closeJob(job) {
     if (!supabase) return;
 
-    const { data: authData } =
-      await supabase.auth.getUser();
-
-    const authUser = authData?.user;
-
-    if (!authUser) {
-      alert("Prvo se prijavite.");
+    if (
+      job.customer_id !==
+      currentUserId
+    ) {
+      alert(
+        "Možete zatvoriti samo svoj posao."
+      );
       return;
     }
 
-    let profile = userProfile;
+    const confirmed =
+      window.confirm(
+        "Želite li zatvoriti ovaj posao?"
+      );
 
-    if (!profile) {
-      profile = await ensureProfile(authUser);
-      setUserProfile(profile);
+    if (!confirmed) return;
+
+    try {
+      const {
+        error
+      } = await supabase
+        .from("jobs")
+        .update({
+          status: "closed"
+        })
+        .eq("id", job.id)
+        .eq(
+          "customer_id",
+          currentUserId
+        );
+
+      if (error) {
+        throw error;
+      }
+
+      setMessage(
+        "Posao je zatvoren."
+      );
+
+      await loadAll();
+    } catch (err) {
+      console.error(err);
+
+      alert(
+        err?.message ||
+          "Posao se nije mogao zatvoriti."
+      );
+    }
+  }
+
+  async function deleteJob(job) {
+    if (!supabase) return;
+
+    if (
+      job.customer_id !==
+      currentUserId
+    ) {
+      alert(
+        "Možete izbrisati samo svoj posao."
+      );
+      return;
     }
 
-    if (profile?.role !== "pro") {
+    const confirmed =
+      window.confirm(
+        "Stvarno želite trajno izbrisati ovaj posao?"
+      );
+
+    if (!confirmed) return;
+
+    try {
+      const {
+        error
+      } = await supabase
+        .from("jobs")
+        .delete()
+        .eq("id", job.id)
+        .eq(
+          "customer_id",
+          currentUserId
+        );
+
+      if (error) {
+        throw error;
+      }
+
+      setMessage(
+        "Posao je izbrisan."
+      );
+
+      await loadAll();
+    } catch (err) {
+      console.error(err);
+
+      alert(
+        err?.message ||
+          "Posao se nije mogao izbrisati."
+      );
+    }
+  }
+
+  async function showInterest(
+    job
+  ) {
+    if (!supabase) return;
+
+    const { data: authData } =
+      await supabase.auth
+        .getUser();
+
+    const authUser =
+      authData?.user;
+
+    if (!authUser) {
+      alert(
+        "Prvo se prijavite."
+      );
+      return;
+    }
+
+    let profile =
+      userProfile;
+
+    if (!profile) {
+      profile =
+        await ensureProfile(
+          authUser
+        );
+
+      setUserProfile(
+        profile
+      );
+    }
+
+    if (
+      profile?.role !== "pro"
+    ) {
       alert(
         "Ova funkcija je za registrirane meštre."
       );
       return;
     }
 
-    const note = window.prompt(
-      "Kratka poruka naručitelju:",
-      "Zainteresiran sam za ovaj posao."
-    );
+    const note =
+      window.prompt(
+        "Kratka poruka naručitelju:",
+        "Zainteresiran sam za ovaj posao."
+      );
 
-    if (note === null) return;
+    if (note === null) {
+      return;
+    }
 
-    const { error } = await supabase
-      .from("interests")
-      .insert({
-        job_id: job.id,
-        pro_id: authUser.id,
-        message: note.trim()
-      });
+    const { error } =
+      await supabase
+        .from("interests")
+        .insert({
+          job_id:
+            job.id,
+
+          pro_id:
+            authUser.id,
+
+          message:
+            note.trim()
+        });
 
     if (error) {
-      if (error.code === "23505") {
+      if (
+        error.code ===
+        "23505"
+      ) {
         alert(
           "Već ste iskazali interes za ovaj posao."
         );
       } else {
-        alert(error.message);
+        alert(
+          error.message
+        );
       }
+
       return;
     }
 
-    alert("Interes je poslan naručitelju.");
+    alert(
+      "Interes je poslan naručitelju."
+    );
   }
 
-  async function unlockContact(job) {
+  async function unlockContact(
+    job
+  ) {
     if (!supabase) return;
 
     try {
       const { data: authData } =
-        await supabase.auth.getUser();
+        await supabase.auth
+          .getUser();
 
-      if (!authData?.user) {
-        alert("Prvo se prijavite.");
+      if (
+        !authData?.user
+      ) {
+        alert(
+          "Prvo se prijavite."
+        );
         return;
       }
 
-      let profile = userProfile;
+      let profile =
+        userProfile;
 
       if (!profile) {
-        profile = await ensureProfile(authData.user);
-        setUserProfile(profile);
+        profile =
+          await ensureProfile(
+            authData.user
+          );
+
+        setUserProfile(
+          profile
+        );
       }
 
-      if (profile?.role !== "pro") {
+      if (
+        profile?.role !== "pro"
+      ) {
         alert(
           "Kontakt mogu otključati samo registrirani meštri."
         );
         return;
       }
 
-      const { error } = await supabase.rpc(
-        "unlock_job_contact",
-        {
-          p_job_id: job.id
-        }
-      );
+      const { error } =
+        await supabase.rpc(
+          "unlock_job_contact",
+          {
+            p_job_id:
+              job.id
+          }
+        );
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       const {
         data: contactData,
         error: contactError
-      } = await supabase.rpc(
-        "get_unlocked_job_contact",
-        {
-          p_job_id: job.id
-        }
-      );
+      } =
+        await supabase.rpc(
+          "get_unlocked_job_contact",
+          {
+            p_job_id:
+              job.id
+          }
+        );
 
-      if (contactError) throw contactError;
+      if (contactError) {
+        throw contactError;
+      }
 
       const phone =
-        contactData?.phone || "Nije dostupan";
+        contactData?.phone ||
+        "Nije dostupan";
 
-      setUnlockedPhones(prev => ({
-        ...prev,
-        [job.id]: phone
-      }));
+      setUnlockedPhones(
+        prev => ({
+          ...prev,
+          [job.id]:
+            phone
+        })
+      );
     } catch (err) {
       console.error(err);
+
       alert(
         err?.message ||
           "Kontakt se nije mogao otključati."
@@ -398,57 +726,90 @@ export default function JobsPage() {
     }
   }
 
-  const visibleJobs = useMemo(() => {
-    return jobs.filter(job => {
-      const cityOk =
-        !filterCity ||
-        job.city
-          ?.toLowerCase()
-          .includes(filterCity.toLowerCase());
+  const visibleJobs =
+    useMemo(() => {
+      return jobs.filter(
+        job => {
+          const cityOk =
+            !filterCity ||
+            job.city
+              ?.toLowerCase()
+              .includes(
+                filterCity
+                  .toLowerCase()
+              );
 
-      const categoryOk =
-        !filterCategory ||
-        job.category === filterCategory;
+          const categoryOk =
+            !filterCategory ||
+            job.category ===
+              filterCategory;
 
-      let radiusOk = true;
+          let radiusOk =
+            true;
 
-      if (
-        userProfile?.role === "pro" &&
-        proProfile?.latitude != null &&
-        proProfile?.longitude != null &&
-        job.latitude != null &&
-        job.longitude != null
-      ) {
-        const distance = haversineKm(
-          Number(proProfile.latitude),
-          Number(proProfile.longitude),
-          Number(job.latitude),
-          Number(job.longitude)
-        );
+          if (
+            userProfile?.role ===
+              "pro" &&
+            proProfile
+              ?.latitude != null &&
+            proProfile
+              ?.longitude != null &&
+            job.latitude != null &&
+            job.longitude != null
+          ) {
+            const distance =
+              haversineKm(
+                Number(
+                  proProfile
+                    .latitude
+                ),
+                Number(
+                  proProfile
+                    .longitude
+                ),
+                Number(
+                  job.latitude
+                ),
+                Number(
+                  job.longitude
+                )
+              );
 
-        const radius =
-          Number(proProfile.service_radius_km) || 50;
+            const radius =
+              Number(
+                proProfile
+                  .service_radius_km
+              ) || 50;
 
-        radiusOk =
-          distance == null || distance <= radius;
-      }
+            radiusOk =
+              distance == null ||
+              distance <=
+                radius;
+          }
 
-      return cityOk && categoryOk && radiusOk;
-    });
-  }, [
-    jobs,
-    filterCity,
-    filterCategory,
-    userProfile,
-    proProfile
-  ]);
+          return (
+            cityOk &&
+            categoryOk &&
+            radiusOk
+          );
+        }
+      );
+    }, [
+      jobs,
+      filterCity,
+      filterCategory,
+      userProfile,
+      proProfile
+    ]);
 
   if (!supabase) {
     return (
       <main className="section">
         <div className="container">
           <p>
-            Aplikacija nije ispravno konfigurirana.
+            Aplikacija nije
+            ispravno
+            konfigurirana.
           </p>
         </div>
       </main>
@@ -464,7 +825,9 @@ export default function JobsPage() {
               Za naručitelje
             </span>
 
-            <h1>Objavi posao</h1>
+            <h1>
+              Objavi posao
+            </h1>
 
             <form
               onSubmit={submit}
@@ -472,23 +835,33 @@ export default function JobsPage() {
             >
               <label>
                 Usluga
+
                 <select
                   name="category"
                   required
                 >
-                  {categories.map(category => (
-                    <option
-                      key={category}
-                      value={category}
-                    >
-                      {category}
-                    </option>
-                  ))}
+                  {categories.map(
+                    category => (
+                      <option
+                        key={
+                          category
+                        }
+                        value={
+                          category
+                        }
+                      >
+                        {
+                          category
+                        }
+                      </option>
+                    )
+                  )}
                 </select>
               </label>
 
               <label>
                 Grad
+
                 <input
                   name="city"
                   required
@@ -497,6 +870,7 @@ export default function JobsPage() {
 
               <label>
                 Adresa radova
+
                 <input
                   name="address"
                   placeholder="Ulica i broj"
@@ -505,6 +879,7 @@ export default function JobsPage() {
 
               <label>
                 Poštanski broj
+
                 <input
                   name="zip"
                   required
@@ -513,6 +888,7 @@ export default function JobsPage() {
 
               <label>
                 Opis
+
                 <textarea
                   name="description"
                   rows="5"
@@ -522,24 +898,40 @@ export default function JobsPage() {
 
               <label>
                 Početak
-                <select name="desired_start">
-                  <option value="Što prije">
+
+                <select
+                  name="desired_start"
+                >
+                  <option
+                    value="Što prije"
+                  >
                     Što prije
                   </option>
-                  <option value="U roku od mjesec dana">
+
+                  <option
+                    value="U roku od mjesec dana"
+                  >
                     U roku od mjesec dana
                   </option>
-                  <option value="Za 1–3 mjeseca">
+
+                  <option
+                    value="Za 1–3 mjeseca"
+                  >
                     Za 1–3 mjeseca
                   </option>
-                  <option value="Samo prikupljam ponude">
+
+                  <option
+                    value="Samo prikupljam ponude"
+                  >
                     Samo prikupljam ponude
                   </option>
                 </select>
               </label>
 
               <label>
-                Fotografije (max 5)
+                Fotografije
+                (max 5)
+
                 <input
                   name="images"
                   type="file"
@@ -551,14 +943,20 @@ export default function JobsPage() {
               <button
                 className="button"
                 type="submit"
-                disabled={submitting}
+                disabled={
+                  submitting
+                }
               >
                 {submitting
                   ? "Objavljujem..."
                   : "Objavi posao"}
               </button>
 
-              {message && <p>{message}</p>}
+              {message && (
+                <p>
+                  {message}
+                </p>
+              )}
             </form>
           </div>
 
@@ -567,27 +965,38 @@ export default function JobsPage() {
               Za meštre
             </span>
 
-            <h2>Aktivni poslovi</h2>
+            <h2>
+              Aktivni poslovi
+            </h2>
 
-            {userProfile?.role === "pro" && (
+            {userProfile?.role ===
+              "pro" && (
               <p className="muted">
-                Ako su spremljene koordinate,
-                prikazuju se samo poslovi unutar
-                vašeg radijusa.
+                Ako su spremljene
+                koordinate,
+                prikazuju se samo
+                poslovi unutar vašeg
+                radijusa.
               </p>
             )}
 
             <div className="filters">
               <input
                 placeholder="Filtriraj po gradu"
-                value={filterCity}
+                value={
+                  filterCity
+                }
                 onChange={e =>
-                  setFilterCity(e.target.value)
+                  setFilterCity(
+                    e.target.value
+                  )
                 }
               />
 
               <select
-                value={filterCategory}
+                value={
+                  filterCategory
+                }
                 onChange={e =>
                   setFilterCategory(
                     e.target.value
@@ -598,103 +1007,186 @@ export default function JobsPage() {
                   Sve usluge
                 </option>
 
-                {categories.map(category => (
-                  <option
-                    key={category}
-                    value={category}
-                  >
-                    {category}
-                  </option>
-                ))}
+                {categories.map(
+                  category => (
+                    <option
+                      key={
+                        category
+                      }
+                      value={
+                        category
+                      }
+                    >
+                      {
+                        category
+                      }
+                    </option>
+                  )
+                )}
               </select>
             </div>
 
             <div className="jobList">
-              {visibleJobs.map(job => (
-                <article
-                  className="card"
-                  key={job.id}
-                >
-                  <span className="badge">
-                    {job.category}
-                  </span>
+              {visibleJobs.map(
+                job => {
+                  const isOwner =
+                    currentUserId &&
+                    job.customer_id ===
+                      currentUserId;
 
-                  <h3>
-                    {job.city} · {job.zip}
-                  </h3>
+                  return (
+                    <article
+                      className="card"
+                      key={
+                        job.id
+                      }
+                    >
+                      <span className="badge">
+                        {
+                          job.category
+                        }
+                      </span>
 
-                  <p>{job.description}</p>
+                      <h3>
+                        {job.city}
+                        {" · "}
+                        {job.zip}
+                      </h3>
 
-                  {job.image_urls?.length > 0 && (
-                    <div className="imageStrip">
-                      {job.image_urls.map(url => (
-                        <img
-                          src={url}
-                          key={url}
-                          alt="Fotografija posla"
-                        />
-                      ))}
-                    </div>
-                  )}
+                      <p>
+                        {
+                          job.description
+                        }
+                      </p>
 
-                  <div className="rowBetween">
-                    <small>
-                      {job.desired_start}
-                    </small>
+                      {job
+                        .image_urls
+                        ?.length >
+                        0 && (
+                        <div className="imageStrip">
+                          {job.image_urls.map(
+                            url => (
+                              <img
+                                src={
+                                  url
+                                }
+                                key={
+                                  url
+                                }
+                                alt="Fotografija posla"
+                              />
+                            )
+                          )}
+                        </div>
+                      )}
 
-                    {userProfile?.role === "pro" && (
-                      <div
-                        style={{
-                          display: "flex",
-                          gap: "8px",
-                          flexWrap: "wrap"
-                        }}
-                      >
-                        <button
-                          type="button"
-                          className="button small"
-                          onClick={() =>
-                            showInterest(job)
+                      <div className="rowBetween">
+                        <small>
+                          {
+                            job.desired_start
                           }
-                        >
-                          Zanima me posao
-                        </button>
+                        </small>
 
-                        {unlockedPhones[job.id] ? (
-                          <a
-                            className="button small"
-                            href={`tel:${unlockedPhones[
-                              job.id
-                            ].replace(/\s+/g, "")}`}
-                          >
-                            Telefon:{" "}
-                            {
-                              unlockedPhones[
-                                job.id
-                              ]
-                            }
-                          </a>
-                        ) : (
-                          <button
-                            type="button"
-                            className="button small"
-                            onClick={() =>
-                              unlockContact(job)
-                            }
-                          >
-                            Otključaj kontakt
-                          </button>
-                        )}
+                        <div
+                          style={{
+                            display:
+                              "flex",
+                            gap:
+                              "8px",
+                            flexWrap:
+                              "wrap"
+                          }}
+                        >
+                          {isOwner && (
+                            <>
+                              <button
+                                type="button"
+                                className="button small"
+                                onClick={() =>
+                                  closeJob(
+                                    job
+                                  )
+                                }
+                              >
+                                Zatvori posao
+                              </button>
+
+                              <button
+                                type="button"
+                                className="button small"
+                                onClick={() =>
+                                  deleteJob(
+                                    job
+                                  )
+                                }
+                              >
+                                Izbriši posao
+                              </button>
+                            </>
+                          )}
+
+                          {!isOwner &&
+                            userProfile?.role ===
+                              "pro" && (
+                              <>
+                                <button
+                                  type="button"
+                                  className="button small"
+                                  onClick={() =>
+                                    showInterest(
+                                      job
+                                    )
+                                  }
+                                >
+                                  Zanima me posao
+                                </button>
+
+                                {unlockedPhones[
+                                  job.id
+                                ] ? (
+                                  <a
+                                    className="button small"
+                                    href={`tel:${unlockedPhones[
+                                      job.id
+                                    ].replace(
+                                      /\s+/g,
+                                      ""
+                                    )}`}
+                                  >
+                                    Telefon:{" "}
+                                    {
+                                      unlockedPhones[
+                                        job
+                                          .id
+                                      ]
+                                    }
+                                  </a>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className="button small"
+                                    onClick={() =>
+                                      unlockContact(
+                                        job
+                                      )
+                                    }
+                                  >
+                                    Otključaj kontakt
+                                  </button>
+                                )}
+                              </>
+                            )}
+                        </div>
                       </div>
-                    )}
-                  </div>
-                </article>
-              ))}
+                    </article>
+                  );
+                }
+              )}
 
               {!visibleJobs.length && (
                 <p>
-                  Nema poslova za odabrani
-                  filter.
+                  Nema poslova za
+                  odabrani filter.
                 </p>
               )}
             </div>
