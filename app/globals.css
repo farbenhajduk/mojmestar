@@ -73,6 +73,7 @@ img {
   font-size: 1.5rem;
   font-weight: 900;
   letter-spacing: -0.04em;
+  white-space: nowrap;
 }
 
 .nav {
@@ -348,26 +349,33 @@ small {
 
   .headerInner {
     min-height: 64px;
-    gap: 12px;
+    gap: 10px;
   }
 
   .brand {
-    font-size: 1.25rem;
+    font-size: 1.15rem;
   }
 
   .nav {
-    gap: 8px;
-    font-size: 0.9rem;
+    gap: 6px;
+    font-size: 0.82rem;
+    margin-left: auto;
+  }
+
+  .nav > a {
+    display: inline-flex;
   }
 
   .nav > a:not(.button) {
-    display: none;
+    padding: 8px 4px;
   }
 
   .nav .button {
-    min-height: 42px;
-    padding: 10px 13px;
-    font-size: 0.88rem;
+    width: auto;
+    min-height: 40px;
+    padding: 9px 10px;
+    font-size: 0.8rem;
+    border-radius: 10px;
   }
 
   .stickyCard {
@@ -440,6 +448,30 @@ small {
 
   .imageStrip {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .headerInner {
+    align-items: center;
+  }
+
+  .brand {
+    font-size: 1rem;
+  }
+
+  .nav {
+    gap: 4px;
+  }
+
+  .nav > a:not(.button) {
+    font-size: 0.75rem;
+  }
+
+  .nav .button {
+    padding: 8px 8px;
+    font-size: 0.74rem;
+    min-height: 38px;
   }
 }
 
