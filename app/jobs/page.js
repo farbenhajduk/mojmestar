@@ -58,6 +58,24 @@ const supabase =
       .order("created_at", { ascending: false });
 
     if (!error) setJobs(data || []);
+    if (!error && auth.user && p?.role === "pro") {
+  const results = await Promise.all(
+    (data || []).map(async job => {
+      const { data: contactData, error: contactError } =
+        await supabase.rpc("get_unlocked_job_contact", {
+          p_job_id: job.id
+        });
+
+      if (contactError || !contactData?.phone) return null;
+
+      return [job.id, contactData.phone];
+    })
+  );
+
+  setUnlockedPhones(
+    Object.fromEntries(results.filter(Boolean))
+  );
+}
   }
 
   useEffect(() => {
