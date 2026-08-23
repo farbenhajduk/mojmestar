@@ -23,95 +23,133 @@ export default function JobsPage() {
   const [filterCity, setFilterCity] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [unlockedPhones, setUnlockedPhones] = useState({});
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const [submitting, setSubmitting] = useState(false);
 
-const supabase =
-  supabaseUrl && supabaseKey
-    ? createBrowserClient(supabaseUrl, supabaseKey)
-    : null;
-  
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  const supabase = useMemo(() => {
+    if (!supabaseUrl || !supabaseKey) return null;
+    return createBrowserClient(supabaseUrl, supabaseKey);
+  }, [supabaseUrl, supabaseKey]);
+
+  async function ensureProfile(authUser) {
+    if (!supabase) return null;
+
+    const { data: existing, error: readError } = await supabase
+      .from("profiles")
+      .select("id, role")
+      .eq("id", authUser.id)
+      .maybeSingle();
+
+    if (readError) throw readError;
+    if (existing) return existing;
+
+    const role =
+      authUser.user_metadata?.role === "pro" ? "pro" : "customer";
+
+    const { data: created, error: createError } = await supabase
+      .from("profiles")
+      .insert({
+        id: authUser.id,
+        role
+      })
+      .select("id, role")
+      .single();
+
+    if (createError) throw createError;
+    return created;
+  }
 
   async function loadAll() {
-    const { data: auth } = await supabase.auth.getUser();
-
-    if (auth.user) {
-      const p = await ensureProfile(auth.user);
-
-      setUserProfile(p);
-
-      if (p?.role === "pro") {
-        const { data: pp } = await supabase
-          .from("pro_profiles")
-          .select("*")
-          .eq("user_id", auth.user.id)
-          .maybeSingle();
-
-        setProProfile(pp);
-      }
+    if (!supabase) {
+      setMessage("Aplikacija nije ispravno konfigurirana.");
+      return;
     }
 
-    const { data, error } = await supabase
-      .from("jobs")
-      .select("*")
-      .eq("status", "open")
-      .order("created_at", { ascending: false });
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      const authUser = authData?.user || null;
 
-    if (!error) setJobs(data || []);
-    if (!error && auth.user && p?.role === "pro") {
-  const results = await Promise.all(
-    (data || []).map(async job => {
-      const { data: contactData, error: contactError } =
-        await supabase.rpc("get_unlocked_job_contact", {
-          p_job_id: job.id
-        });
+      let profile = null;
 
-      if (contactError || !contactData?.phone) return null;
+      if (authUser) {
+        profile = await ensureProfile(authUser);
+        setUserProfile(profile);
 
-      return [job.id, contactData.phone];
-    })
-  );
+        if (profile?.role === "pro") {
+          const { data: pp, error: ppError } = await supabase
+            .from("pro_profiles")
+            .select("*")
+            .eq("user_id", authUser.id)
+            .maybeSingle();
 
-  setUnlockedPhones(
-    Object.fromEntries(results.filter(Boolean))
-  );
-}
+          if (!ppError) {
+            setProProfile(pp || null);
+          }
+        } else {
+          setProProfile(null);
+        }
+      } else {
+        setUserProfile(null);
+        setProProfile(null);
+      }
+
+      const { data, error } = await supabase
+        .from("jobs")
+        .select("*")
+        .eq("status", "open")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      const loadedJobs = data || [];
+      setJobs(loadedJobs);
+
+      if (authUser && profile?.role === "pro") {
+        const results = await Promise.all(
+          loadedJobs.map(async job => {
+            const {
+              data: contactData,
+              error: contactError
+            } = await supabase.rpc(
+              "get_unlocked_job_contact",
+              {
+                p_job_id: job.id
+              }
+            );
+
+            if (contactError || !contactData?.phone) {
+              return null;
+            }
+
+            return [job.id, contactData.phone];
+          })
+        );
+
+        setUnlockedPhones(
+          Object.fromEntries(results.filter(Boolean))
+        );
+      } else {
+        setUnlockedPhones({});
+      }
+    } catch (err) {
+      console.error(err);
+      setMessage(err?.message || "Greška pri učitavanju.");
+    }
   }
 
   useEffect(() => {
     loadAll();
-  }, []);
+  }, [supabase]);
 
-  async function ensureProfile(authUser) {
-  const { data: existing, error: readError } = await supabase
-    .from("profiles")
-    .select("id, role")
-    .eq("id", authUser.id)
-    .maybeSingle();
-
-  if (readError) throw readError;
-  if (existing) return existing;
-
-  const role =
-    authUser.user_metadata?.role === "pro" ? "pro" : "customer";
-
-  const { data: created, error: createError } = await supabase
-    .from("profiles")
-    .insert({
-      id: authUser.id,
-      role
-    })
-    .select("id, role")
-    .single();
-
-  if (createError) throw createError;
-  return created;
-}async function uploadImages(files, userId) {
+  async function uploadImages(files, userId) {
     const urls = [];
 
     for (const file of files) {
-      const ext = file.name.split(".").pop();
-      const fileName = `${userId}/${crypto.randomUUID()}.${ext}`;
+      const ext = file.name.split(".").pop() || "jpg";
+      const fileName =
+        `${userId}/${crypto.randomUUID()}.${ext}`;
 
       const { error } = await supabase.storage
         .from("job-images")
@@ -123,7 +161,9 @@ const supabase =
         .from("job-images")
         .getPublicUrl(fileName);
 
-      urls.push(data.publicUrl);
+      if (data?.publicUrl) {
+        urls.push(data.publicUrl);
+      }
     }
 
     return urls;
@@ -131,84 +171,139 @@ const supabase =
 
   async function submit(e) {
     e.preventDefault();
+
+    if (!supabase || submitting) return;
+
     setMessage("");
+    setSubmitting(true);
 
     const formEl = e.currentTarget;
     const f = new FormData(formEl);
 
-    const { data: auth } = await supabase.auth.getUser();
+    try {
+      const { data: authData } =
+        await supabase.auth.getUser();
 
-    if (!auth.user) {
-      return setMessage("Za objavu posla prvo se prijavi.");
-    }
+      const authUser = authData?.user;
 
-    let imageUrls = [];
-    let latitude = null;
-    let longitude = null;
+      if (!authUser) {
+        setMessage("Za objavu posla prvo se prijavi.");
+        return;
+      }
 
-    const files = Array.from(f.getAll("images")).filter(
-      x => x && x.size
-    );
+      const profile = await ensureProfile(authUser);
 
-    if (files.length > 5) {
-      return setMessage("Možete dodati najviše 5 fotografija.");
-    }
+      if (profile?.role === "pro") {
+        setMessage(
+          "Profil majstora ne može objavljivati posao."
+        );
+        return;
+      }
 
-    try {await ensureProfile(auth.user);
-        
-      const geoRes = await fetch("/api/geocode", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          address: f.get("address"),
-          city: f.get("city"),
-          zip: f.get("zip")
-        })
-      });
+      const files = Array.from(
+        f.getAll("images")
+      ).filter(file => file && file.size);
 
-      if (geoRes.ok) {
-        const geo = await geoRes.json();
-        latitude = geo.latitude;
-        longitude = geo.longitude;
+      if (files.length > 5) {
+        setMessage(
+          "Možete dodati najviše 5 fotografija."
+        );
+        return;
+      }
+
+      let imageUrls = [];
+      let latitude = null;
+      let longitude = null;
+
+      try {
+        const geoRes = await fetch("/api/geocode", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json"
+          },
+          body: JSON.stringify({
+            address: f.get("address"),
+            city: f.get("city"),
+            zip: f.get("zip")
+          })
+        });
+
+        if (geoRes.ok) {
+          const geo = await geoRes.json();
+          latitude = geo?.latitude ?? null;
+          longitude = geo?.longitude ?? null;
+        }
+      } catch (geoError) {
+        console.warn(
+          "Geocoding nije uspio:",
+          geoError
+        );
       }
 
       if (files.length) {
-        imageUrls = await uploadImages(files, auth.user.id);
+        imageUrls = await uploadImages(
+          files,
+          authUser.id
+        );
       }
 
-      const { error } = await supabase.from("jobs").insert({
-        customer_id: auth.user.id,
-        category: f.get("category"),
-        city: f.get("city"),
-        zip: f.get("zip"),
-        description: f.get("description"),
-        address: f.get("address"),
-        desired_start: f.get("desired_start"),
-        latitude,
-        longitude,
-        image_urls: imageUrls,
-        status: "open"
-      });
+      const { error } = await supabase
+        .from("jobs")
+        .insert({
+          customer_id: authUser.id,
+          category: f.get("category"),
+          city: f.get("city")?.trim(),
+          zip: f.get("zip")?.trim(),
+          description: f.get("description")?.trim(),
+          address: f.get("address")?.trim() || null,
+          desired_start: f.get("desired_start"),
+          latitude,
+          longitude,
+          image_urls: imageUrls,
+          status: "open"
+        });
 
       if (error) throw error;
 
       formEl.reset();
       setMessage("Posao je objavljen.");
-      loadAll();
+
+      await loadAll();
     } catch (err) {
-      setMessage(err.message);
+      console.error(err);
+      setMessage(
+        err?.message || "Objava posla nije uspjela."
+      );
+    } finally {
+      setSubmitting(false);
     }
   }
 
   async function showInterest(job) {
-    const { data: auth } = await supabase.auth.getUser();
+    if (!supabase) return;
 
-    if (!auth.user) {
-      return alert("Prvo se prijavite.");
+    const { data: authData } =
+      await supabase.auth.getUser();
+
+    const authUser = authData?.user;
+
+    if (!authUser) {
+      alert("Prvo se prijavite.");
+      return;
     }
 
-    if (userProfile?.role !== "pro") {
-      return alert("Ova funkcija je za registrirane meštre.");
+    let profile = userProfile;
+
+    if (!profile) {
+      profile = await ensureProfile(authUser);
+      setUserProfile(profile);
+    }
+
+    if (profile?.role !== "pro") {
+      alert(
+        "Ova funkcija je za registrirane meštre."
+      );
+      return;
     }
 
     const note = window.prompt(
@@ -218,66 +313,102 @@ const supabase =
 
     if (note === null) return;
 
-    const { error } = await supabase.from("interests").insert({
-      job_id: job.id,
-      pro_id: auth.user.id,
-      message: note
-    });
+    const { error } = await supabase
+      .from("interests")
+      .insert({
+        job_id: job.id,
+        pro_id: authUser.id,
+        message: note.trim()
+      });
 
     if (error) {
       if (error.code === "23505") {
-        alert("Već ste iskazali interes za ovaj posao.");
+        alert(
+          "Već ste iskazali interes za ovaj posao."
+        );
       } else {
         alert(error.message);
       }
-    } else {
-      alert("Interes je poslan naručitelju.");
+      return;
     }
+
+    alert("Interes je poslan naručitelju.");
   }
 
   async function unlockContact(job) {
-  const { data, error } = await supabase.rpc(
-    "unlock_job_contact",
-    { p_job_id: job.id }
-  );
+    if (!supabase) return;
 
-  if (error) {
-    alert(error.message);
-    return;
+    try {
+      const { data: authData } =
+        await supabase.auth.getUser();
+
+      if (!authData?.user) {
+        alert("Prvo se prijavite.");
+        return;
+      }
+
+      let profile = userProfile;
+
+      if (!profile) {
+        profile = await ensureProfile(authData.user);
+        setUserProfile(profile);
+      }
+
+      if (profile?.role !== "pro") {
+        alert(
+          "Kontakt mogu otključati samo registrirani meštri."
+        );
+        return;
+      }
+
+      const { error } = await supabase.rpc(
+        "unlock_job_contact",
+        {
+          p_job_id: job.id
+        }
+      );
+
+      if (error) throw error;
+
+      const {
+        data: contactData,
+        error: contactError
+      } = await supabase.rpc(
+        "get_unlocked_job_contact",
+        {
+          p_job_id: job.id
+        }
+      );
+
+      if (contactError) throw contactError;
+
+      const phone =
+        contactData?.phone || "Nije dostupan";
+
+      setUnlockedPhones(prev => ({
+        ...prev,
+        [job.id]: phone
+      }));
+    } catch (err) {
+      console.error(err);
+      alert(
+        err?.message ||
+          "Kontakt se nije mogao otključati."
+      );
+    }
   }
 
-  const { data: contactData, error: contactError } =
-    await supabase.rpc("get_unlocked_job_contact", {
-      p_job_id: job.id
-    });
-
-  if (contactError) {
-    alert(contactError.message);
-    return;
-  }
-
-  const phone = contactData?.phone ?? "Nije dostupan";
-    setUnlockedPhones(prev => ({ ...prev, [job.id]: phone }));
-
-  
-   
-      
-        
-  
-
-  await loadAll();
-}
-
-const visibleJobs = useMemo(() => {
-  return jobs.filter(j => {
-
-    
+  const visibleJobs = useMemo(() => {
+    return jobs.filter(job => {
       const cityOk =
         !filterCity ||
-        j.city?.toLowerCase().includes(filterCity.toLowerCase());
+        job.city
+          ?.toLowerCase()
+          .includes(filterCity.toLowerCase());
 
-      const catOk =
-        !filterCategory || j.category === filterCategory;
+      const categoryOk =
+        !filterCategory ||
+        job.category === filterCategory;
 
       let radiusOk = true;
 
@@ -285,23 +416,24 @@ const visibleJobs = useMemo(() => {
         userProfile?.role === "pro" &&
         proProfile?.latitude != null &&
         proProfile?.longitude != null &&
-        j.latitude != null &&
-        j.longitude != null
+        job.latitude != null &&
+        job.longitude != null
       ) {
-        const d = haversineKm(
-          proProfile.latitude,
-          proProfile.longitude,
-          j.latitude,
-          j.longitude
+        const distance = haversineKm(
+          Number(proProfile.latitude),
+          Number(proProfile.longitude),
+          Number(job.latitude),
+          Number(job.longitude)
         );
 
+        const radius =
+          Number(proProfile.service_radius_km) || 50;
+
         radiusOk =
-          d == null
-            ? true
-            : d <= (proProfile.service_radius_km || 50);
+          distance == null || distance <= radius;
       }
 
-      return cityOk && catOk && radiusOk;
+      return cityOk && categoryOk && radiusOk;
     });
   }, [
     jobs,
@@ -311,27 +443,56 @@ const visibleJobs = useMemo(() => {
     proProfile
   ]);
 
+  if (!supabase) {
+    return (
+      <main className="section">
+        <div className="container">
+          <p>
+            Aplikacija nije ispravno konfigurirana.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="section">
       <div className="container">
         <div className="twoCol">
           <div className="card stickyCard">
-            <span className="eyebrow">Za naručitelje</span>
+            <span className="eyebrow">
+              Za naručitelje
+            </span>
+
             <h1>Objavi posao</h1>
 
-            <form onSubmit={submit} className="form">
+            <form
+              onSubmit={submit}
+              className="form"
+            >
               <label>
                 Usluga
-                <select name="category" required>
-                  {categories.map(c => (
-                    <option key={c}>{c}</option>
+                <select
+                  name="category"
+                  required
+                >
+                  {categories.map(category => (
+                    <option
+                      key={category}
+                      value={category}
+                    >
+                      {category}
+                    </option>
                   ))}
                 </select>
               </label>
 
               <label>
                 Grad
-                <input name="city" required />
+                <input
+                  name="city"
+                  required
+                />
               </label>
 
               <label>
@@ -344,7 +505,10 @@ const visibleJobs = useMemo(() => {
 
               <label>
                 Poštanski broj
-                <input name="zip" required />
+                <input
+                  name="zip"
+                  required
+                />
               </label>
 
               <label>
@@ -359,10 +523,18 @@ const visibleJobs = useMemo(() => {
               <label>
                 Početak
                 <select name="desired_start">
-                  <option>Što prije</option>
-                  <option>U roku od mjesec dana</option>
-                  <option>Za 1–3 mjeseca</option>
-                  <option>Samo prikupljam ponude</option>
+                  <option value="Što prije">
+                    Što prije
+                  </option>
+                  <option value="U roku od mjesec dana">
+                    U roku od mjesec dana
+                  </option>
+                  <option value="Za 1–3 mjeseca">
+                    Za 1–3 mjeseca
+                  </option>
+                  <option value="Samo prikupljam ponude">
+                    Samo prikupljam ponude
+                  </option>
                 </select>
               </label>
 
@@ -376,22 +548,32 @@ const visibleJobs = useMemo(() => {
                 />
               </label>
 
-              <button className="button">
-                Objavi posao
+              <button
+                className="button"
+                type="submit"
+                disabled={submitting}
+              >
+                {submitting
+                  ? "Objavljujem..."
+                  : "Objavi posao"}
               </button>
 
-              <p>{message}</p>
+              {message && <p>{message}</p>}
             </form>
           </div>
 
           <div>
-            <span className="eyebrow">Za meštre</span>
+            <span className="eyebrow">
+              Za meštre
+            </span>
+
             <h2>Aktivni poslovi</h2>
 
             {userProfile?.role === "pro" && (
               <p className="muted">
-                Ako su spremljene koordinate, prikazuju se
-                samo poslovi unutar vašeg radijusa.
+                Ako su spremljene koordinate,
+                prikazuju se samo poslovi unutar
+                vašeg radijusa.
               </p>
             )}
 
@@ -407,33 +589,45 @@ const visibleJobs = useMemo(() => {
               <select
                 value={filterCategory}
                 onChange={e =>
-                  setFilterCategory(e.target.value)
+                  setFilterCategory(
+                    e.target.value
+                  )
                 }
               >
-                <option value="">Sve usluge</option>
+                <option value="">
+                  Sve usluge
+                </option>
 
-                {categories.map(c => (
-                  <option key={c}>{c}</option>
+                {categories.map(category => (
+                  <option
+                    key={category}
+                    value={category}
+                  >
+                    {category}
+                  </option>
                 ))}
               </select>
             </div>
 
             <div className="jobList">
-              {visibleJobs.map(j => (
-                <article className="card" key={j.id}>
+              {visibleJobs.map(job => (
+                <article
+                  className="card"
+                  key={job.id}
+                >
                   <span className="badge">
-                    {j.category}
+                    {job.category}
                   </span>
 
                   <h3>
-                    {j.city} · {j.zip}
+                    {job.city} · {job.zip}
                   </h3>
 
-                  <p>{j.description}</p>
+                  <p>{job.description}</p>
 
-                  {j.image_urls?.length > 0 && (
+                  {job.image_urls?.length > 0 && (
                     <div className="imageStrip">
-                      {j.image_urls.map(url => (
+                      {job.image_urls.map(url => (
                         <img
                           src={url}
                           key={url}
@@ -444,47 +638,63 @@ const visibleJobs = useMemo(() => {
                   )}
 
                   <div className="rowBetween">
-                    <small>{j.desired_start}</small>
+                    <small>
+                      {job.desired_start}
+                    </small>
 
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: "8px",
-                        flexWrap: "wrap"
-                      }}
-                    >
-                      <button
-                        className="button small"
-                        onClick={() => showInterest(j)}
+                    {userProfile?.role === "pro" && (
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "8px",
+                          flexWrap: "wrap"
+                        }}
                       >
-                        Zanima me posao
-                      </button>
+                        <button
+                          type="button"
+                          className="button small"
+                          onClick={() =>
+                            showInterest(job)
+                          }
+                        >
+                          Zanima me posao
+                        </button>
 
-                      {userProfile?.role === "pro" && (
-                        <>
-                      {unlockedPhones[j.id] ? (
-  <div className="button small">
-    Telefon: {unlockedPhones[j.id]}
-  </div>
-) : (
-  <button
-    className="button small"
-    onClick={() => unlockContact(j)}
-  >
-    Otključaj kontakt
-  </button>
-      )}
-</>
-)}
-                      
-                    </div>
+                        {unlockedPhones[job.id] ? (
+                          <a
+                            className="button small"
+                            href={`tel:${unlockedPhones[
+                              job.id
+                            ].replace(/\s+/g, "")}`}
+                          >
+                            Telefon:{" "}
+                            {
+                              unlockedPhones[
+                                job.id
+                              ]
+                            }
+                          </a>
+                        ) : (
+                          <button
+                            type="button"
+                            className="button small"
+                            onClick={() =>
+                              unlockContact(job)
+                            }
+                          >
+                            Otključaj kontakt
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </article>
               ))}
 
               {!visibleJobs.length && (
                 <p>
-                  Nema poslova za odabrani filter.
+                  Nema poslova za odabrani
+                  filter.
                 </p>
               )}
             </div>
