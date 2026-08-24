@@ -1188,7 +1188,7 @@ export default function JobsPage() {
                                       href={`/majstor/${interest.pro_id}`}
                                       className="button secondary small"
                                     >
-                                      Profil ansehen
+                                      Pogledaj profil
                                     </Link>
                                   </div>
                                 )
