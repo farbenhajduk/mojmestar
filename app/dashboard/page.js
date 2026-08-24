@@ -368,7 +368,23 @@ export default function DashboardPage() {
             {user.email}
           </p>
 
+          <p>
+            Vrsta računa:{" "}
+            <strong>
+              {profile?.role === "pro"
+                ? "Majstor"
+                : "Naručitelj"}
+            </strong>
+          </p>
+
           <div className="actions">
+            <Link
+              href="/profile"
+              className="button secondary"
+            >
+              Uredi profil
+            </Link>
+
             <Link
               href="/jobs"
               className="button"
