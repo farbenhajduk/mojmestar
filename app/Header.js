@@ -86,6 +86,10 @@ export default function Header() {
 
           {!loading && user ? (
             <>
+              <Link href="/profile">
+                Profil
+              </Link>
+
               <Link
                 href="/dashboard"
                 className="button secondary small"
