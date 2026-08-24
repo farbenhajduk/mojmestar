@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
 import { haversineKm } from "../../lib/geo";
 
@@ -24,13 +25,19 @@ export default function JobsPage() {
   const [filterCity, setFilterCity] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [unlockedPhones, setUnlockedPhones] = useState({});
+  const [interestsByJob, setInterestsByJob] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseUrl =
+    process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+  const supabaseKey =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   const supabase = useMemo(() => {
-    if (!supabaseUrl || !supabaseKey) return null;
+    if (!supabaseUrl || !supabaseKey) {
+      return null;
+    }
 
     return createBrowserClient(
       supabaseUrl,
@@ -50,9 +57,13 @@ export default function JobsPage() {
       .eq("id", authUser.id)
       .maybeSingle();
 
-    if (readError) throw readError;
+    if (readError) {
+      throw readError;
+    }
 
-    if (existing) return existing;
+    if (existing) {
+      return existing;
+    }
 
     const role =
       authUser.user_metadata?.role === "pro"
@@ -71,7 +82,9 @@ export default function JobsPage() {
       .select("id, role")
       .single();
 
-    if (createError) throw createError;
+    if (createError) {
+      throw createError;
+    }
 
     return created;
   }
@@ -117,7 +130,9 @@ export default function JobsPage() {
             .maybeSingle();
 
           if (!ppError) {
-            setProProfile(pp || null);
+            setProProfile(
+              pp || null
+            );
           }
         } else {
           setProProfile(null);
@@ -136,15 +151,89 @@ export default function JobsPage() {
         .eq("status", "open")
         .order(
           "created_at",
-          { ascending: false }
+          {
+            ascending: false
+          }
         );
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       const loadedJobs =
         data || [];
 
       setJobs(loadedJobs);
+
+      if (
+        authUser &&
+        profile?.role === "customer"
+      ) {
+        const ownJobIds =
+          loadedJobs
+            .filter(
+              job =>
+                job.customer_id ===
+                authUser.id
+            )
+            .map(
+              job => job.id
+            );
+
+        if (ownJobIds.length) {
+          const {
+            data: interestRows,
+            error: interestError
+          } = await supabase
+            .from("interests")
+            .select(
+              "id, job_id, pro_id, message, created_at"
+            )
+            .in(
+              "job_id",
+              ownJobIds
+            )
+            .order(
+              "created_at",
+              {
+                ascending: false
+              }
+            );
+
+          if (interestError) {
+            throw interestError;
+          }
+
+          const grouped = {};
+
+          for (
+            const interest of
+            interestRows || []
+          ) {
+            if (
+              !grouped[
+                interest.job_id
+              ]
+            ) {
+              grouped[
+                interest.job_id
+              ] = [];
+            }
+
+            grouped[
+              interest.job_id
+            ].push(interest);
+          }
+
+          setInterestsByJob(
+            grouped
+          );
+        } else {
+          setInterestsByJob({});
+        }
+      } else {
+        setInterestsByJob({});
+      }
 
       if (
         authUser &&
@@ -203,7 +292,10 @@ export default function JobsPage() {
     loadAll();
   }, [supabase]);
 
-  async function uploadImages(files, userId) {
+  async function uploadImages(
+    files,
+    userId
+  ) {
     const urls = [];
 
     for (const file of files) {
@@ -223,7 +315,9 @@ export default function JobsPage() {
             file
           );
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       const { data } =
         supabase.storage
@@ -245,7 +339,10 @@ export default function JobsPage() {
   async function submit(e) {
     e.preventDefault();
 
-    if (!supabase || submitting) {
+    if (
+      !supabase ||
+      submitting
+    ) {
       return;
     }
 
@@ -273,9 +370,13 @@ export default function JobsPage() {
       }
 
       const profile =
-        await ensureProfile(authUser);
+        await ensureProfile(
+          authUser
+        );
 
-      if (profile?.role === "pro") {
+      if (
+        profile?.role === "pro"
+      ) {
         setMessage(
           "Profil majstora ne može objavljivati posao."
         );
@@ -291,7 +392,9 @@ export default function JobsPage() {
             file.size
         );
 
-      if (files.length > 5) {
+      if (
+        files.length > 5
+      ) {
         setMessage(
           "Možete dodati najviše 5 fotografija."
         );
@@ -315,11 +418,17 @@ export default function JobsPage() {
               body:
                 JSON.stringify({
                   address:
-                    f.get("address"),
+                    f.get(
+                      "address"
+                    ),
                   city:
-                    f.get("city"),
+                    f.get(
+                      "city"
+                    ),
                   zip:
-                    f.get("zip")
+                    f.get(
+                      "zip"
+                    )
                 })
             }
           );
@@ -358,18 +467,34 @@ export default function JobsPage() {
             customer_id:
               authUser.id,
             category:
-              f.get("category"),
+              f.get(
+                "category"
+              ),
             city:
-              f.get("city")?.trim(),
+              f
+                .get("city")
+                ?.trim(),
             zip:
-              f.get("zip")?.trim(),
+              f
+                .get("zip")
+                ?.trim(),
             description:
-              f.get("description")?.trim(),
+              f
+                .get(
+                  "description"
+                )
+                ?.trim(),
             address:
-              f.get("address")?.trim() ||
+              f
+                .get(
+                  "address"
+                )
+                ?.trim() ||
               null,
             desired_start:
-              f.get("desired_start"),
+              f.get(
+                "desired_start"
+              ),
             latitude,
             longitude,
             image_urls:
@@ -419,14 +544,19 @@ export default function JobsPage() {
         "Želite li zatvoriti ovaj posao? Posao će biti uklonjen iz aktivnih poslova."
       );
 
-    if (!confirmed) return;
+    if (!confirmed) {
+      return;
+    }
 
     try {
       const { error } =
         await supabase
           .from("jobs")
           .delete()
-          .eq("id", job.id)
+          .eq(
+            "id",
+            job.id
+          )
           .eq(
             "customer_id",
             currentUserId
@@ -469,14 +599,19 @@ export default function JobsPage() {
         "Stvarno želite trajno izbrisati ovaj posao?"
       );
 
-    if (!confirmed) return;
+    if (!confirmed) {
+      return;
+    }
 
     try {
       const { error } =
         await supabase
           .from("jobs")
           .delete()
-          .eq("id", job.id)
+          .eq(
+            "id",
+            job.id
+          )
           .eq(
             "customer_id",
             currentUserId
@@ -522,9 +657,13 @@ export default function JobsPage() {
 
     if (!profile) {
       profile =
-        await ensureProfile(authUser);
+        await ensureProfile(
+          authUser
+        );
 
-      setUserProfile(profile);
+      setUserProfile(
+        profile
+      );
     }
 
     if (
@@ -542,7 +681,9 @@ export default function JobsPage() {
         "Zainteresiran sam za ovaj posao."
       );
 
-    if (note === null) {
+    if (
+      note === null
+    ) {
       return;
     }
 
@@ -560,7 +701,8 @@ export default function JobsPage() {
 
     if (error) {
       if (
-        error.code === "23505"
+        error.code ===
+        "23505"
       ) {
         alert(
           "Već ste iskazali interes za ovaj posao."
@@ -586,7 +728,9 @@ export default function JobsPage() {
       const { data: authData } =
         await supabase.auth.getUser();
 
-      if (!authData?.user) {
+      if (
+        !authData?.user
+      ) {
         alert(
           "Prvo se prijavite."
         );
@@ -719,7 +863,8 @@ export default function JobsPage() {
 
             radiusOk =
               distance == null ||
-              distance <= radius;
+              distance <=
+                radius;
           }
 
           return (
@@ -777,7 +922,9 @@ export default function JobsPage() {
                     category => (
                       <option
                         key={category}
-                        value={category}
+                        value={
+                          category
+                        }
                       >
                         {category}
                       </option>
@@ -861,7 +1008,9 @@ export default function JobsPage() {
               <button
                 className="button"
                 type="submit"
-                disabled={submitting}
+                disabled={
+                  submitting
+                }
               >
                 {submitting
                   ? "Objavljujem..."
@@ -904,7 +1053,9 @@ export default function JobsPage() {
               />
 
               <select
-                value={filterCategory}
+                value={
+                  filterCategory
+                }
                 onChange={e =>
                   setFilterCategory(
                     e.target.value
@@ -918,8 +1069,12 @@ export default function JobsPage() {
                 {categories.map(
                   category => (
                     <option
-                      key={category}
-                      value={category}
+                      key={
+                        category
+                      }
+                      value={
+                        category
+                      }
                     >
                       {category}
                     </option>
@@ -935,6 +1090,11 @@ export default function JobsPage() {
                     currentUserId &&
                     job.customer_id ===
                       currentUserId;
+
+                  const jobInterests =
+                    interestsByJob[
+                      job.id
+                    ] || [];
 
                   return (
                     <article
@@ -955,14 +1115,19 @@ export default function JobsPage() {
                         {job.description}
                       </p>
 
-                      {job.image_urls?.length >
+                      {job.image_urls
+                        ?.length >
                         0 && (
                         <div className="imageStrip">
                           {job.image_urls.map(
                             url => (
                               <img
-                                src={url}
-                                key={url}
+                                src={
+                                  url
+                                }
+                                key={
+                                  url
+                                }
                                 alt="Fotografija posla"
                               />
                             )
@@ -970,9 +1135,73 @@ export default function JobsPage() {
                         </div>
                       )}
 
+                      {isOwner &&
+                        jobInterests.length >
+                          0 && (
+                          <div
+                            style={{
+                              marginTop:
+                                "18px",
+                              paddingTop:
+                                "18px",
+                              borderTop:
+                                "1px solid var(--border)"
+                            }}
+                          >
+                            <strong>
+                              Zainteresirani majstori
+                            </strong>
+
+                            <div
+                              style={{
+                                display:
+                                  "grid",
+                                gap:
+                                  "12px",
+                                marginTop:
+                                  "12px"
+                              }}
+                            >
+                              {jobInterests.map(
+                                interest => (
+                                  <div
+                                    key={
+                                      interest.id
+                                    }
+                                    className="card"
+                                    style={{
+                                      padding:
+                                        "14px"
+                                    }}
+                                  >
+                                    <p
+                                      style={{
+                                        marginTop:
+                                          0
+                                      }}
+                                    >
+                                      {interest.message ||
+                                        "Majstor je zainteresiran za posao."}
+                                    </p>
+
+                                    <Link
+                                      href={`/majstor/${interest.pro_id}`}
+                                      className="button secondary small"
+                                    >
+                                      Profil ansehen
+                                    </Link>
+                                  </div>
+                                )
+                              )}
+                            </div>
+                          </div>
+                        )}
+
                       <div className="rowBetween">
                         <small>
-                          {job.desired_start}
+                          {
+                            job.desired_start
+                          }
                         </small>
 
                         <div
@@ -991,7 +1220,9 @@ export default function JobsPage() {
                                 type="button"
                                 className="button small"
                                 onClick={() =>
-                                  closeJob(job)
+                                  closeJob(
+                                    job
+                                  )
                                 }
                               >
                                 Zatvori posao
@@ -1001,7 +1232,9 @@ export default function JobsPage() {
                                 type="button"
                                 className="button small"
                                 onClick={() =>
-                                  deleteJob(job)
+                                  deleteJob(
+                                    job
+                                  )
                                 }
                               >
                                 Izbriši posao
@@ -1017,7 +1250,9 @@ export default function JobsPage() {
                                   type="button"
                                   className="button small"
                                   onClick={() =>
-                                    showInterest(job)
+                                    showInterest(
+                                      job
+                                    )
                                   }
                                 >
                                   Zanima me posao
@@ -1047,7 +1282,9 @@ export default function JobsPage() {
                                     type="button"
                                     className="button small"
                                     onClick={() =>
-                                      unlockContact(job)
+                                      unlockContact(
+                                        job
+                                      )
                                     }
                                   >
                                     Otključaj kontakt
