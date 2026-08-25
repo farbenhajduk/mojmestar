@@ -20,6 +20,7 @@ export default function PublicMajstorPage() {
   const [comment, setComment] = useState("");
   const [reviewSaving, setReviewSaving] = useState(false);
   const [existingReview, setExistingReview] = useState(null);
+  const [hasCompletedJobWithPro, setHasCompletedJobWithPro] = useState(false);
 
   const supabaseUrl =
     process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -73,8 +74,36 @@ export default function PublicMajstorPage() {
         setCurrentUserProfile(
           userProfileData || null
         );
+
+        if (
+          userProfileData?.role === "customer" &&
+          authUser.id !== params.id
+        ) {
+          const {
+            data: completedJob,
+            error: completedJobError
+          } = await supabase
+            .from("jobs")
+            .select("id")
+            .eq("customer_id", authUser.id)
+            .eq("selected_pro_id", params.id)
+            .eq("status", "completed")
+            .limit(1)
+            .maybeSingle();
+
+          if (completedJobError) {
+            throw completedJobError;
+          }
+
+          setHasCompletedJobWithPro(
+            Boolean(completedJob)
+          );
+        } else {
+          setHasCompletedJobWithPro(false);
+        }
       } else {
         setCurrentUserProfile(null);
+        setHasCompletedJobWithPro(false);
       }
 
       const {
@@ -381,12 +410,16 @@ export default function PublicMajstorPage() {
     );
   }
 
-  const canReview =
+  const isCustomerViewer =
     currentUser &&
     currentUserProfile?.role ===
       "customer" &&
     currentUser.id !==
       params.id;
+
+  const canReview =
+    isCustomerViewer &&
+    hasCompletedJobWithPro;
 
   return (
     <main className="section">
@@ -713,7 +746,7 @@ export default function PublicMajstorPage() {
             </form>
           )}
 
-        {canReview &&
+        {isCustomerViewer &&
           existingReview && (
             <div
               className="card"
