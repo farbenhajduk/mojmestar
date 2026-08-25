@@ -19,6 +19,7 @@ export default function PublicMajstorPage() {
   const [rating, setRating] = useState("5");
   const [comment, setComment] = useState("");
   const [reviewSaving, setReviewSaving] = useState(false);
+  const [existingReview, setExistingReview] = useState(null);
 
   const supabaseUrl =
     process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -99,6 +100,7 @@ export default function PublicMajstorPage() {
 
       if (!publicProfile) {
         setReviews([]);
+        setExistingReview(null);
         setMessage(
           "Profil majstora nije pronađen."
         );
@@ -106,6 +108,14 @@ export default function PublicMajstorPage() {
       }
 
       await loadReviews();
+
+      if (authUser) {
+        await loadExistingReview(
+          authUser.id
+        );
+      } else {
+        setExistingReview(null);
+      }
     } catch (err) {
       console.error(err);
 
@@ -147,13 +157,44 @@ export default function PublicMajstorPage() {
     );
   }
 
+  async function loadExistingReview(
+    userId
+  ) {
+    const {
+      data,
+      error
+    } = await supabase
+      .from("pro_reviews")
+      .select(
+        "id, rating, comment, created_at"
+      )
+      .eq(
+        "pro_id",
+        params.id
+      )
+      .eq(
+        "customer_id",
+        userId
+      )
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    setExistingReview(
+      data || null
+    );
+  }
+
   async function submitReview(e) {
     e.preventDefault();
 
     if (
       !supabase ||
       !currentUser ||
-      reviewSaving
+      reviewSaving ||
+      existingReview
     ) {
       return;
     }
@@ -185,6 +226,10 @@ export default function PublicMajstorPage() {
           setMessage(
             "Već ste ocijenili ovog majstora."
           );
+
+          await loadExistingReview(
+            currentUser.id
+          );
         } else {
           throw error;
         }
@@ -200,6 +245,10 @@ export default function PublicMajstorPage() {
       );
 
       await loadReviews();
+
+      await loadExistingReview(
+        currentUser.id
+      );
     } catch (err) {
       console.error(err);
 
@@ -534,83 +583,125 @@ export default function PublicMajstorPage() {
           </div>
         )}
 
-        {canReview && (
-          <form
-            onSubmit={submitReview}
-            className="card form"
-            style={{
-              marginBottom: "24px"
-            }}
-          >
-            <span className="eyebrow">
-              Ocijeni majstora
-            </span>
+        {canReview &&
+          !existingReview && (
+            <form
+              onSubmit={submitReview}
+              className="card form"
+              style={{
+                marginBottom: "24px"
+              }}
+            >
+              <span className="eyebrow">
+                Ocijeni majstora
+              </span>
 
-            <h2>
-              Vaša ocjena
-            </h2>
+              <h2>
+                Vaša ocjena
+              </h2>
 
-            <label>
-              Broj zvjezdica
+              <label>
+                Broj zvjezdica
 
-              <select
-                value={rating}
-                onChange={e =>
-                  setRating(
-                    e.target.value
-                  )
+                <select
+                  value={rating}
+                  onChange={e =>
+                    setRating(
+                      e.target.value
+                    )
+                  }
+                >
+                  <option value="5">
+                    5 ★★★★★
+                  </option>
+
+                  <option value="4">
+                    4 ★★★★☆
+                  </option>
+
+                  <option value="3">
+                    3 ★★★☆☆
+                  </option>
+
+                  <option value="2">
+                    2 ★★☆☆☆
+                  </option>
+
+                  <option value="1">
+                    1 ★☆☆☆☆
+                  </option>
+                </select>
+              </label>
+
+              <label>
+                Komentar
+
+                <textarea
+                  rows="4"
+                  value={comment}
+                  onChange={e =>
+                    setComment(
+                      e.target.value
+                    )
+                  }
+                  placeholder="Kako ste zadovoljni radom majstora?"
+                />
+              </label>
+
+              <button
+                type="submit"
+                className="button"
+                disabled={
+                  reviewSaving
                 }
               >
-                <option value="5">
-                  5 ★★★★★
-                </option>
+                {reviewSaving
+                  ? "Spremam..."
+                  : "Pošalji ocjenu"}
+              </button>
+            </form>
+          )}
 
-                <option value="4">
-                  4 ★★★★☆
-                </option>
-
-                <option value="3">
-                  3 ★★★☆☆
-                </option>
-
-                <option value="2">
-                  2 ★★☆☆☆
-                </option>
-
-                <option value="1">
-                  1 ★☆☆☆☆
-                </option>
-              </select>
-            </label>
-
-            <label>
-              Komentar
-
-              <textarea
-                rows="4"
-                value={comment}
-                onChange={e =>
-                  setComment(
-                    e.target.value
-                  )
-                }
-                placeholder="Kako ste zadovoljni radom majstora?"
-              />
-            </label>
-
-            <button
-              type="submit"
-              className="button"
-              disabled={
-                reviewSaving
-              }
+        {canReview &&
+          existingReview && (
+            <div
+              className="card"
+              style={{
+                marginBottom: "24px"
+              }}
             >
-              {reviewSaving
-                ? "Spremam..."
-                : "Pošalji ocjenu"}
-            </button>
-          </form>
-        )}
+              <span className="eyebrow">
+                Vaša ocjena
+              </span>
+
+              <h2>
+                Već ste ocijenili ovog majstora.
+              </h2>
+
+              <div
+                style={{
+                  fontSize: "26px",
+                  marginBottom: "8px"
+                }}
+              >
+                {renderStars(
+                  existingReview.rating
+                )}
+              </div>
+
+              <p>
+                <strong>
+                  {existingReview.rating}/5
+                </strong>
+              </p>
+
+              {existingReview.comment && (
+                <p>
+                  {existingReview.comment}
+                </p>
+              )}
+            </div>
+          )}
 
         <div
           className="card"
