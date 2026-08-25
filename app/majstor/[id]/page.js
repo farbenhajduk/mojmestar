@@ -13,6 +13,13 @@ export default function PublicMajstorPage() {
   const [reviews, setReviews] = useState([]);
   const [message, setMessage] = useState("");
 
+  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUserProfile, setCurrentUserProfile] = useState(null);
+
+  const [rating, setRating] = useState("5");
+  const [comment, setComment] = useState("");
+  const [reviewSaving, setReviewSaving] = useState(false);
+
   const supabaseUrl =
     process.env.NEXT_PUBLIC_SUPABASE_URL;
 
@@ -31,10 +38,10 @@ export default function PublicMajstorPage() {
   }, [supabaseUrl, supabaseKey]);
 
   useEffect(() => {
-    loadProfile();
+    loadPage();
   }, [supabase, params?.id]);
 
-  async function loadProfile() {
+  async function loadPage() {
     if (!supabase || !params?.id) {
       setLoading(false);
       return;
@@ -44,6 +51,31 @@ export default function PublicMajstorPage() {
     setMessage("");
 
     try {
+      const {
+        data: authData
+      } = await supabase.auth.getUser();
+
+      const authUser =
+        authData?.user || null;
+
+      setCurrentUser(authUser);
+
+      if (authUser) {
+        const {
+          data: userProfileData
+        } = await supabase
+          .from("profiles")
+          .select("id, role")
+          .eq("id", authUser.id)
+          .maybeSingle();
+
+        setCurrentUserProfile(
+          userProfileData || null
+        );
+      } else {
+        setCurrentUserProfile(null);
+      }
+
       const {
         data,
         error
@@ -73,32 +105,7 @@ export default function PublicMajstorPage() {
         return;
       }
 
-      const {
-        data: reviewData,
-        error: reviewError
-      } = await supabase
-        .from("pro_reviews")
-        .select(
-          "id, rating, comment, created_at"
-        )
-        .eq(
-          "pro_id",
-          params.id
-        )
-        .order(
-          "created_at",
-          {
-            ascending: false
-          }
-        );
-
-      if (reviewError) {
-        throw reviewError;
-      }
-
-      setReviews(
-        reviewData || []
-      );
+      await loadReviews();
     } catch (err) {
       console.error(err);
 
@@ -108,6 +115,100 @@ export default function PublicMajstorPage() {
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadReviews() {
+    const {
+      data,
+      error
+    } = await supabase
+      .from("pro_reviews")
+      .select(
+        "id, rating, comment, created_at"
+      )
+      .eq(
+        "pro_id",
+        params.id
+      )
+      .order(
+        "created_at",
+        {
+          ascending: false
+        }
+      );
+
+    if (error) {
+      throw error;
+    }
+
+    setReviews(
+      data || []
+    );
+  }
+
+  async function submitReview(e) {
+    e.preventDefault();
+
+    if (
+      !supabase ||
+      !currentUser ||
+      reviewSaving
+    ) {
+      return;
+    }
+
+    setReviewSaving(true);
+    setMessage("");
+
+    try {
+      const {
+        error
+      } = await supabase
+        .from("pro_reviews")
+        .insert({
+          pro_id:
+            params.id,
+          customer_id:
+            currentUser.id,
+          rating:
+            Number(rating),
+          comment:
+            comment.trim() ||
+            null
+        });
+
+      if (error) {
+        if (
+          error.code === "23505"
+        ) {
+          setMessage(
+            "Već ste ocijenili ovog majstora."
+          );
+        } else {
+          throw error;
+        }
+
+        return;
+      }
+
+      setComment("");
+      setRating("5");
+
+      setMessage(
+        "Hvala! Vaša ocjena je spremljena."
+      );
+
+      await loadReviews();
+    } catch (err) {
+      console.error(err);
+
+      setMessage(
+        err?.message ||
+          "Ocjena se nije mogla spremiti."
+      );
+    } finally {
+      setReviewSaving(false);
     }
   }
 
@@ -130,10 +231,10 @@ export default function PublicMajstorPage() {
       return total / reviews.length;
     }, [reviews]);
 
-  function renderStars(rating) {
+  function renderStars(value) {
     const rounded =
       Math.round(
-        Number(rating) || 0
+        Number(value) || 0
       );
 
     return Array.from(
@@ -235,6 +336,13 @@ export default function PublicMajstorPage() {
     );
   }
 
+  const canReview =
+    currentUser &&
+    currentUserProfile?.role ===
+      "customer" &&
+    currentUser.id !==
+      params.id;
+
   return (
     <main className="section">
       <div className="container">
@@ -295,9 +403,7 @@ export default function PublicMajstorPage() {
                   </strong>{" "}
                   od 5 ·{" "}
                   {reviews.length}{" "}
-                  {reviews.length === 1
-                    ? "ocjena"
-                    : "ocjena"}
+                  ocjena
                 </p>
               </>
             ) : (
@@ -426,6 +532,84 @@ export default function PublicMajstorPage() {
               )}
             </div>
           </div>
+        )}
+
+        {canReview && (
+          <form
+            onSubmit={submitReview}
+            className="card form"
+            style={{
+              marginBottom: "24px"
+            }}
+          >
+            <span className="eyebrow">
+              Ocijeni majstora
+            </span>
+
+            <h2>
+              Vaša ocjena
+            </h2>
+
+            <label>
+              Broj zvjezdica
+
+              <select
+                value={rating}
+                onChange={e =>
+                  setRating(
+                    e.target.value
+                  )
+                }
+              >
+                <option value="5">
+                  5 ★★★★★
+                </option>
+
+                <option value="4">
+                  4 ★★★★☆
+                </option>
+
+                <option value="3">
+                  3 ★★★☆☆
+                </option>
+
+                <option value="2">
+                  2 ★★☆☆☆
+                </option>
+
+                <option value="1">
+                  1 ★☆☆☆☆
+                </option>
+              </select>
+            </label>
+
+            <label>
+              Komentar
+
+              <textarea
+                rows="4"
+                value={comment}
+                onChange={e =>
+                  setComment(
+                    e.target.value
+                  )
+                }
+                placeholder="Kako ste zadovoljni radom majstora?"
+              />
+            </label>
+
+            <button
+              type="submit"
+              className="button"
+              disabled={
+                reviewSaving
+              }
+            >
+              {reviewSaving
+                ? "Spremam..."
+                : "Pošalji ocjenu"}
+            </button>
+          </form>
         )}
 
         <div
