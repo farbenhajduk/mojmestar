@@ -15,6 +15,9 @@ const categories = [
   "Kompletna adaptacija"
 ];
 
+const MAX_PORTFOLIO_IMAGES = 6;
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+
 export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -35,6 +38,10 @@ export default function ProfilePage() {
   const [bio, setBio] = useState("");
   const [serviceRadius, setServiceRadius] = useState("50");
   const [selectedCategories, setSelectedCategories] = useState([]);
+
+  const [portfolioUrls, setPortfolioUrls] = useState([]);
+  const [uploadingPortfolio, setUploadingPortfolio] = useState(false);
+  const [deletingPortfolioUrl, setDeletingPortfolioUrl] = useState("");
 
   const supabaseUrl =
     process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -67,7 +74,9 @@ export default function ProfilePage() {
       .eq("id", authUser.id)
       .maybeSingle();
 
-    if (readError) throw readError;
+    if (readError) {
+      throw readError;
+    }
 
     if (existing) {
       return existing;
@@ -90,7 +99,9 @@ export default function ProfilePage() {
       .select("*")
       .single();
 
-    if (createError) throw createError;
+    if (createError) {
+      throw createError;
+    }
 
     return created;
   }
@@ -113,14 +124,18 @@ export default function ProfilePage() {
         error: authError
       } = await supabase.auth.getUser();
 
-      if (authError) throw authError;
+      if (authError) {
+        throw authError;
+      }
 
-      const authUser = authData?.user || null;
+      const authUser =
+        authData?.user || null;
 
       if (!authUser) {
         setUser(null);
         setProfile(null);
         setProProfile(null);
+        setPortfolioUrls([]);
         return;
       }
 
@@ -131,57 +146,89 @@ export default function ProfilePage() {
 
       setProfile(currentProfile);
 
-      setFullName(currentProfile?.full_name || "");
-      setCity(currentProfile?.city || "");
-      setPhone(currentProfile?.phone || "");
+      setFullName(
+        currentProfile?.full_name || ""
+      );
 
-      if (currentProfile?.role === "pro") {
+      setCity(
+        currentProfile?.city || ""
+      );
+
+      setPhone(
+        currentProfile?.phone || ""
+      );
+
+      if (
+        currentProfile?.role === "pro"
+      ) {
         const {
           data: pp,
           error: ppError
         } = await supabase
           .from("pro_profiles")
           .select("*")
-          .eq("user_id", authUser.id)
+          .eq(
+            "user_id",
+            authUser.id
+          )
           .maybeSingle();
 
-        if (ppError) throw ppError;
+        if (ppError) {
+          throw ppError;
+        }
 
-        const currentProProfile = pp || null;
+        const currentProProfile =
+          pp || null;
 
-        setProProfile(currentProProfile);
+        setProProfile(
+          currentProProfile
+        );
 
         setCompanyName(
-          currentProProfile?.company_name || ""
+          currentProProfile?.company_name ||
+            ""
         );
 
         setOib(
-          currentProProfile?.oib || ""
+          currentProProfile?.oib ||
+            ""
         );
 
         setAddress(
-          currentProProfile?.address || ""
+          currentProProfile?.address ||
+            ""
         );
 
         setZip(
-          currentProProfile?.zip || ""
+          currentProProfile?.zip ||
+            ""
         );
 
         setBio(
-          currentProProfile?.bio || ""
+          currentProProfile?.bio ||
+            ""
         );
 
         setServiceRadius(
           String(
-            currentProProfile?.service_radius_km ?? 50
+            currentProProfile
+              ?.service_radius_km ??
+              50
           )
         );
 
         setSelectedCategories(
-          currentProProfile?.categories || []
+          currentProProfile
+            ?.categories || []
+        );
+
+        setPortfolioUrls(
+          currentProProfile
+            ?.portfolio_urls || []
         );
       } else {
         setProProfile(null);
+        setPortfolioUrls([]);
       }
     } catch (err) {
       console.error(err);
@@ -197,9 +244,12 @@ export default function ProfilePage() {
 
   function toggleCategory(category) {
     setSelectedCategories(prev => {
-      if (prev.includes(category)) {
+      if (
+        prev.includes(category)
+      ) {
         return prev.filter(
-          item => item !== category
+          item =>
+            item !== category
         );
       }
 
@@ -210,10 +260,397 @@ export default function ProfilePage() {
     });
   }
 
+  function buildProPayload(
+    newPortfolioUrls = portfolioUrls
+  ) {
+    return {
+      user_id: user.id,
+
+      company_name:
+        companyName.trim() ||
+        null,
+
+      oib:
+        oib.trim() ||
+        null,
+
+      address:
+        address.trim() ||
+        null,
+
+      zip:
+        zip.trim() ||
+        null,
+
+      bio:
+        bio.trim() ||
+        null,
+
+      service_radius_km:
+        Number(serviceRadius) ||
+        50,
+
+      categories:
+        selectedCategories,
+
+      portfolio_urls:
+        newPortfolioUrls
+    };
+  }
+
+  async function saveProData(
+    newPortfolioUrls = portfolioUrls
+  ) {
+    const proPayload =
+      buildProPayload(
+        newPortfolioUrls
+      );
+
+    if (proProfile?.id) {
+      const {
+        data,
+        error
+      } = await supabase
+        .from("pro_profiles")
+        .update(proPayload)
+        .eq(
+          "user_id",
+          user.id
+        )
+        .select("*")
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      setProProfile(data);
+
+      return data;
+    }
+
+    const {
+      data,
+      error
+    } = await supabase
+      .from("pro_profiles")
+      .insert(proPayload)
+      .select("*")
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    setProProfile(data);
+
+    return data;
+  }
+
+  async function uploadPortfolioImages(
+    event
+  ) {
+    const files =
+      Array.from(
+        event.target.files || []
+      );
+
+    event.target.value = "";
+
+    if (
+      !supabase ||
+      !user ||
+      profile?.role !== "pro"
+    ) {
+      return;
+    }
+
+    if (!files.length) {
+      return;
+    }
+
+    if (
+      portfolioUrls.length >=
+      MAX_PORTFOLIO_IMAGES
+    ) {
+      setMessage(
+        "Možete dodati najviše 6 fotografija."
+      );
+      return;
+    }
+
+    const remainingSlots =
+      MAX_PORTFOLIO_IMAGES -
+      portfolioUrls.length;
+
+    if (
+      files.length >
+      remainingSlots
+    ) {
+      setMessage(
+        `Možete dodati još samo ${remainingSlots} fotografija.`
+      );
+      return;
+    }
+
+    const allowedTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/webp"
+    ];
+
+    for (
+      const file of files
+    ) {
+      if (
+        !allowedTypes.includes(
+          file.type
+        )
+      ) {
+        setMessage(
+          "Dozvoljeni formati su JPG, PNG i WEBP."
+        );
+        return;
+      }
+
+      if (
+        file.size >
+        MAX_FILE_SIZE
+      ) {
+        setMessage(
+          "Jedna fotografija može imati najviše 5 MB."
+        );
+        return;
+      }
+    }
+
+    setUploadingPortfolio(true);
+    setMessage("");
+
+    const uploadedPaths = [];
+
+    try {
+      const newUrls = [];
+
+      for (
+        const file of files
+      ) {
+        const extension =
+          file.name
+            .split(".")
+            .pop()
+            ?.toLowerCase() ||
+          "jpg";
+
+        const randomPart =
+          Math.random()
+            .toString(36)
+            .slice(2, 10);
+
+        const filePath =
+          `${user.id}/` +
+          `${Date.now()}-` +
+          `${randomPart}.` +
+          `${extension}`;
+
+        const {
+          error: uploadError
+        } = await supabase.storage
+          .from("portfolio")
+          .upload(
+            filePath,
+            file,
+            {
+              cacheControl:
+                "3600",
+              upsert: false
+            }
+          );
+
+        if (uploadError) {
+          throw uploadError;
+        }
+
+        uploadedPaths.push(
+          filePath
+        );
+
+        const {
+          data: publicUrlData
+        } = supabase.storage
+          .from("portfolio")
+          .getPublicUrl(
+            filePath
+          );
+
+        const publicUrl =
+          publicUrlData
+            ?.publicUrl;
+
+        if (!publicUrl) {
+          throw new Error(
+            "URL fotografije nije mogao biti kreiran."
+          );
+        }
+
+        newUrls.push(
+          publicUrl
+        );
+      }
+
+      const nextUrls = [
+        ...portfolioUrls,
+        ...newUrls
+      ];
+
+      await saveProData(
+        nextUrls
+      );
+
+      setPortfolioUrls(
+        nextUrls
+      );
+
+      setMessage(
+        files.length === 1
+          ? "Fotografija je dodana."
+          : "Fotografije su dodane."
+      );
+    } catch (err) {
+      console.error(err);
+
+      if (
+        uploadedPaths.length
+      ) {
+        await supabase.storage
+          .from("portfolio")
+          .remove(
+            uploadedPaths
+          );
+      }
+
+      setMessage(
+        err?.message ||
+          "Fotografija se nije mogla prenijeti."
+      );
+    } finally {
+      setUploadingPortfolio(false);
+    }
+  }
+
+  function getStoragePathFromUrl(
+    url
+  ) {
+    const marker =
+      "/storage/v1/object/public/portfolio/";
+
+    const markerIndex =
+      url.indexOf(marker);
+
+    if (
+      markerIndex === -1
+    ) {
+      return null;
+    }
+
+    const encodedPath =
+      url.slice(
+        markerIndex +
+          marker.length
+      );
+
+    try {
+      return decodeURIComponent(
+        encodedPath
+      );
+    } catch {
+      return encodedPath;
+    }
+  }
+
+  async function deletePortfolioImage(
+    url
+  ) {
+    if (
+      !supabase ||
+      !user ||
+      deletingPortfolioUrl
+    ) {
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        "Želite li izbrisati ovu fotografiju?"
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingPortfolioUrl(
+      url
+    );
+
+    setMessage("");
+
+    try {
+      const path =
+        getStoragePathFromUrl(
+          url
+        );
+
+      if (path) {
+        const {
+          error: storageError
+        } = await supabase.storage
+          .from("portfolio")
+          .remove([path]);
+
+        if (storageError) {
+          throw storageError;
+        }
+      }
+
+      const nextUrls =
+        portfolioUrls.filter(
+          item =>
+            item !== url
+        );
+
+      await saveProData(
+        nextUrls
+      );
+
+      setPortfolioUrls(
+        nextUrls
+      );
+
+      setMessage(
+        "Fotografija je izbrisana."
+      );
+    } catch (err) {
+      console.error(err);
+
+      setMessage(
+        err?.message ||
+          "Fotografija se nije mogla izbrisati."
+      );
+    } finally {
+      setDeletingPortfolioUrl(
+        ""
+      );
+    }
+  }
+
   async function saveProfile(e) {
     e.preventDefault();
 
-    if (!supabase || !user || !profile) {
+    if (
+      !supabase ||
+      !user ||
+      !profile
+    ) {
       return;
     }
 
@@ -227,66 +664,37 @@ export default function ProfilePage() {
         .from("profiles")
         .update({
           full_name:
-            fullName.trim() || null,
+            fullName.trim() ||
+            null,
+
           city:
-            city.trim() || null,
+            city.trim() ||
+            null,
+
           phone:
-            phone.trim() || null
+            phone.trim() ||
+            null
         })
-        .eq("id", user.id);
+        .eq(
+          "id",
+          user.id
+        );
 
       if (profileError) {
         throw profileError;
       }
 
-      if (profile.role === "pro") {
-        const proPayload = {
-          user_id: user.id,
-          company_name:
-            companyName.trim() || null,
-          oib:
-            oib.trim() || null,
-          address:
-            address.trim() || null,
-          zip:
-            zip.trim() || null,
-          bio:
-            bio.trim() || null,
-          service_radius_km:
-            Number(serviceRadius) || 50,
-          categories:
-            selectedCategories
-        };
-
-        if (proProfile?.id) {
-          const {
-            error: proError
-          } = await supabase
-            .from("pro_profiles")
-            .update(proPayload)
-            .eq("user_id", user.id);
-
-          if (proError) {
-            throw proError;
-          }
-        } else {
-          const {
-            error: proError
-          } = await supabase
-            .from("pro_profiles")
-            .insert(proPayload);
-
-          if (proError) {
-            throw proError;
-          }
-        }
+      if (
+        profile.role === "pro"
+      ) {
+        await saveProData(
+          portfolioUrls
+        );
       }
 
       setMessage(
         "Profil je spremljen."
       );
-
-      await loadProfile();
     } catch (err) {
       console.error(err);
 
@@ -304,11 +712,12 @@ export default function ProfilePage() {
       <main className="section">
         <div className="container">
           <div className="card">
-            <h1>Profil</h1>
+            <h1>
+              Profil
+            </h1>
 
             <p>
-              Aplikacija nije ispravno
-              konfigurirana.
+              Aplikacija nije ispravno konfigurirana.
             </p>
           </div>
         </div>
@@ -325,7 +734,9 @@ export default function ProfilePage() {
               MOJMEŠTAR
             </span>
 
-            <h1>Profil</h1>
+            <h1>
+              Profil
+            </h1>
 
             <p className="muted">
               Učitavanje...
@@ -345,11 +756,12 @@ export default function ProfilePage() {
               MOJMEŠTAR
             </span>
 
-            <h1>Profil</h1>
+            <h1>
+              Profil
+            </h1>
 
             <p>
-              Za uređivanje profila
-              morate se prvo prijaviti.
+              Za uređivanje profila morate se prvo prijaviti.
             </p>
 
             <div className="actions">
@@ -372,14 +784,17 @@ export default function ProfilePage() {
         <div
           className="card"
           style={{
-            marginBottom: "24px"
+            marginBottom:
+              "24px"
           }}
         >
           <span className="eyebrow">
             MOJMEŠTAR
           </span>
 
-          <h1>Moj profil</h1>
+          <h1>
+            Moj profil
+          </h1>
 
           <p className="muted">
             {user.email}
@@ -388,7 +803,8 @@ export default function ProfilePage() {
           <p>
             Vrsta računa:{" "}
             <strong>
-              {profile?.role === "pro"
+              {profile?.role ===
+              "pro"
                 ? "Majstor"
                 : "Naručitelj"}
             </strong>
@@ -412,7 +828,9 @@ export default function ProfilePage() {
         </div>
 
         <form
-          onSubmit={saveProfile}
+          onSubmit={
+            saveProfile
+          }
           className="card form"
         >
           <span className="eyebrow">
@@ -421,10 +839,15 @@ export default function ProfilePage() {
 
           <label>
             Ime i prezime
+
             <input
-              value={fullName}
+              value={
+                fullName
+              }
               onChange={e =>
-                setFullName(e.target.value)
+                setFullName(
+                  e.target.value
+                )
               }
               placeholder="Ime i prezime"
             />
@@ -432,10 +855,15 @@ export default function ProfilePage() {
 
           <label>
             Grad
+
             <input
-              value={city}
+              value={
+                city
+              }
               onChange={e =>
-                setCity(e.target.value)
+                setCity(
+                  e.target.value
+                )
               }
               placeholder="Zagreb"
             />
@@ -443,25 +871,33 @@ export default function ProfilePage() {
 
           <label>
             Telefon
+
             <input
               type="tel"
-              value={phone}
+              value={
+                phone
+              }
               onChange={e =>
-                setPhone(e.target.value)
+                setPhone(
+                  e.target.value
+                )
               }
               placeholder="+385..."
             />
           </label>
 
-          {profile?.role === "pro" && (
+          {profile?.role ===
+            "pro" && (
             <>
               <hr
                 style={{
-                  width: "100%",
+                  width:
+                    "100%",
                   border: 0,
                   borderTop:
                     "1px solid var(--border)",
-                  margin: "8px 0"
+                  margin:
+                    "8px 0"
                 }}
               />
 
@@ -471,8 +907,11 @@ export default function ProfilePage() {
 
               <label>
                 Naziv firme
+
                 <input
-                  value={companyName}
+                  value={
+                    companyName
+                  }
                   onChange={e =>
                     setCompanyName(
                       e.target.value
@@ -484,10 +923,15 @@ export default function ProfilePage() {
 
               <label>
                 OIB
+
                 <input
-                  value={oib}
+                  value={
+                    oib
+                  }
                   onChange={e =>
-                    setOib(e.target.value)
+                    setOib(
+                      e.target.value
+                    )
                   }
                   placeholder="OIB"
                 />
@@ -495,8 +939,11 @@ export default function ProfilePage() {
 
               <label>
                 Adresa
+
                 <input
-                  value={address}
+                  value={
+                    address
+                  }
                   onChange={e =>
                     setAddress(
                       e.target.value
@@ -508,10 +955,15 @@ export default function ProfilePage() {
 
               <label>
                 Poštanski broj
+
                 <input
-                  value={zip}
+                  value={
+                    zip
+                  }
                   onChange={e =>
-                    setZip(e.target.value)
+                    setZip(
+                      e.target.value
+                    )
                   }
                   placeholder="10000"
                 />
@@ -519,11 +971,16 @@ export default function ProfilePage() {
 
               <label>
                 Opis / Bio
+
                 <textarea
                   rows="5"
-                  value={bio}
+                  value={
+                    bio
+                  }
                   onChange={e =>
-                    setBio(e.target.value)
+                    setBio(
+                      e.target.value
+                    )
                   }
                   placeholder="Opišite svoje iskustvo, način rada i usluge."
                 />
@@ -531,11 +988,14 @@ export default function ProfilePage() {
 
               <label>
                 Radijus usluge u km
+
                 <input
                   type="number"
                   min="1"
                   max="500"
-                  value={serviceRadius}
+                  value={
+                    serviceRadius
+                  }
                   onChange={e =>
                     setServiceRadius(
                       e.target.value
@@ -551,21 +1011,29 @@ export default function ProfilePage() {
 
                 <div
                   style={{
-                    display: "grid",
-                    gap: "10px",
-                    marginTop: "10px"
+                    display:
+                      "grid",
+                    gap:
+                      "10px",
+                    marginTop:
+                      "10px"
                   }}
                 >
                   {categories.map(
                     category => (
                       <label
-                        key={category}
+                        key={
+                          category
+                        }
                         style={{
-                          display: "flex",
+                          display:
+                            "flex",
                           alignItems:
                             "center",
-                          gap: "10px",
-                          fontWeight: 600
+                          gap:
+                            "10px",
+                          fontWeight:
+                            600
                         }}
                       >
                         <input
@@ -581,8 +1049,10 @@ export default function ProfilePage() {
                             )
                           }
                           style={{
-                            width: "20px",
-                            minHeight: "20px"
+                            width:
+                              "20px",
+                            minHeight:
+                              "20px"
                           }}
                         />
 
@@ -595,11 +1065,175 @@ export default function ProfilePage() {
                 </div>
               </div>
 
+              <hr
+                style={{
+                  width:
+                    "100%",
+                  border: 0,
+                  borderTop:
+                    "1px solid var(--border)",
+                  margin:
+                    "12px 0"
+                }}
+              />
+
+              <div>
+                <span className="eyebrow">
+                  Portfolio
+                </span>
+
+                <h2
+                  style={{
+                    marginTop:
+                      "8px"
+                  }}
+                >
+                  Referenzbilder
+                </h2>
+
+                <p className="muted">
+                  Zeigen Sie Ihren Kunden abgeschlossene Arbeiten. Maximal 6 Fotos, je 5 MB.
+                </p>
+
+                {portfolioUrls.length <
+                  MAX_PORTFOLIO_IMAGES && (
+                  <label
+                    className="button secondary"
+                    style={{
+                      display:
+                        "inline-flex",
+                      cursor:
+                        uploadingPortfolio
+                          ? "default"
+                          : "pointer",
+                      marginTop:
+                        "8px"
+                    }}
+                  >
+                    {uploadingPortfolio
+                      ? "Prenosim..."
+                      : "Dodaj fotografije"}
+
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      multiple
+                      disabled={
+                        uploadingPortfolio
+                      }
+                      onChange={
+                        uploadPortfolioImages
+                      }
+                      style={{
+                        display:
+                          "none"
+                      }}
+                    />
+                  </label>
+                )}
+
+                <p
+                  className="muted"
+                  style={{
+                    marginTop:
+                      "10px"
+                  }}
+                >
+                  {portfolioUrls.length}
+                  {" / "}
+                  {MAX_PORTFOLIO_IMAGES}
+                  {" "}
+                  fotografija
+                </p>
+
+                {portfolioUrls.length >
+                  0 && (
+                  <div
+                    style={{
+                      display:
+                        "grid",
+                      gridTemplateColumns:
+                        "repeat(auto-fit, minmax(140px, 1fr))",
+                      gap:
+                        "14px",
+                      marginTop:
+                        "16px"
+                    }}
+                  >
+                    {portfolioUrls.map(
+                      (
+                        url,
+                        index
+                      ) => (
+                        <div
+                          key={
+                            url
+                          }
+                          style={{
+                            border:
+                              "1px solid var(--border)",
+                            borderRadius:
+                              "16px",
+                            padding:
+                              "10px"
+                          }}
+                        >
+                          <img
+                            src={
+                              url
+                            }
+                            alt={`Referenca ${index + 1}`}
+                            style={{
+                              width:
+                                "100%",
+                              height:
+                                "150px",
+                              objectFit:
+                                "cover",
+                              borderRadius:
+                                "12px",
+                              display:
+                                "block"
+                            }}
+                          />
+
+                          <button
+                            type="button"
+                            className="button secondary"
+                            disabled={
+                              deletingPortfolioUrl ===
+                              url
+                            }
+                            onClick={() =>
+                              deletePortfolioImage(
+                                url
+                              )
+                            }
+                            style={{
+                              width:
+                                "100%",
+                              marginTop:
+                                "10px"
+                            }}
+                          >
+                            {deletingPortfolioUrl ===
+                            url
+                              ? "Brišem..."
+                              : "Izbriši"}
+                          </button>
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
+              </div>
+
               {proProfile?.verified && (
                 <div
                   className="badge"
                   style={{
-                    marginTop: "8px"
+                    marginTop:
+                      "8px"
                   }}
                 >
                   Verificirani majstor
@@ -610,12 +1244,18 @@ export default function ProfilePage() {
                 <p className="muted">
                   Paket:{" "}
                   <strong>
-                    {proProfile.plan}
+                    {
+                      proProfile.plan
+                    }
                   </strong>
+
                   {" · "}
+
                   Status:{" "}
                   <strong>
-                    {proProfile.plan_status}
+                    {
+                      proProfile.plan_status
+                    }
                   </strong>
                 </p>
               )}
@@ -625,7 +1265,10 @@ export default function ProfilePage() {
           <button
             type="submit"
             className="button"
-            disabled={saving}
+            disabled={
+              saving ||
+              uploadingPortfolio
+            }
           >
             {saving
               ? "Spremam..."
