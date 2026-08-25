@@ -619,7 +619,7 @@ export default function JobsPage() {
 
     const confirmed =
       window.confirm(
-        "Želite li zatvoriti ovaj posao? Posao će biti uklonjen iz aktivnih poslova."
+        "Želite li označiti ovaj posao kao završen?"
       );
 
     if (!confirmed) {
@@ -629,24 +629,20 @@ export default function JobsPage() {
     try {
       const {
         error
-      } = await supabase
-        .from("jobs")
-        .delete()
-        .eq(
-          "id",
-          job.id
-        )
-        .eq(
-          "customer_id",
-          currentUserId
-        );
+      } = await supabase.rpc(
+        "close_job",
+        {
+          p_job_id:
+            job.id
+        }
+      );
 
       if (error) {
         throw error;
       }
 
       setMessage(
-        "Posao je zatvoren."
+        "Posao je uspješno završen."
       );
 
       await loadAll();
@@ -655,7 +651,7 @@ export default function JobsPage() {
 
       alert(
         err?.message ||
-          "Posao se nije mogao zatvoriti."
+          "Posao se nije mogao završiti."
       );
     }
   }
