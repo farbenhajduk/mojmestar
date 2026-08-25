@@ -970,7 +970,7 @@ export default function ProfilePage() {
               </label>
 
               <label>
-                Opis / Bio
+                Opis profila
 
                 <textarea
                   rows="5"
@@ -1088,11 +1088,11 @@ export default function ProfilePage() {
                       "8px"
                   }}
                 >
-                  Referenzbilder
+                  Referentne fotografije
                 </h2>
 
                 <p className="muted">
-                  Zeigen Sie Ihren Kunden abgeschlossene Arbeiten. Maximal 6 Fotos, je 5 MB.
+                  Pokažite klijentima svoje završene radove. Najviše 6 fotografija, do 5 MB po fotografiji.
                 </p>
 
                 {portfolioUrls.length <
@@ -1182,7 +1182,7 @@ export default function ProfilePage() {
                             src={
                               url
                             }
-                            alt={`Referenca ${index + 1}`}
+                            alt={`Referentna fotografija ${index + 1}`}
                             style={{
                               width:
                                 "100%",
