@@ -154,14 +154,10 @@ export default function PublicMajstorPage() {
       throw error;
     }
 
-    setReviews(
-      data || []
-    );
+    setReviews(data || []);
   }
 
-  async function loadExistingReview(
-    userId
-  ) {
+  async function loadExistingReview(userId) {
     const {
       data,
       error
@@ -210,15 +206,9 @@ export default function PublicMajstorPage() {
       } = await supabase
         .from("pro_reviews")
         .insert({
-          pro_id:
-            params.id,
-
-          customer_id:
-            currentUser.id,
-
-          rating:
-            Number(rating),
-
+          pro_id: params.id,
+          customer_id: currentUser.id,
+          rating: Number(rating),
           comment:
             comment.trim() ||
             null
@@ -326,9 +316,7 @@ export default function PublicMajstorPage() {
       <main className="section">
         <div className="container">
           <div className="card">
-            <h1>
-              Majstor
-            </h1>
+            <h1>Majstor</h1>
 
             <p>
               Aplikacija nije ispravno konfigurirana.
@@ -462,9 +450,7 @@ export default function PublicMajstorPage() {
                 </strong>{" "}
                 od 5 ·{" "}
                 {reviews.length}{" "}
-                {reviews.length === 1
-                  ? "ocjena"
-                  : "ocjena"}
+                ocjena
               </p>
             </div>
           ) : (
