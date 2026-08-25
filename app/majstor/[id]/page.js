@@ -101,9 +101,11 @@ export default function PublicMajstorPage() {
       if (!publicProfile) {
         setReviews([]);
         setExistingReview(null);
+
         setMessage(
           "Profil majstora nije pronađen."
         );
+
         return;
       }
 
@@ -210,10 +212,13 @@ export default function PublicMajstorPage() {
         .insert({
           pro_id:
             params.id,
+
           customer_id:
             currentUser.id,
+
           rating:
             Number(rating),
+
           comment:
             comment.trim() ||
             null
@@ -321,7 +326,9 @@ export default function PublicMajstorPage() {
       <main className="section">
         <div className="container">
           <div className="card">
-            <h1>Majstor</h1>
+            <h1>
+              Majstor
+            </h1>
 
             <p>
               Aplikacija nije ispravno konfigurirana.
@@ -399,14 +406,18 @@ export default function PublicMajstorPage() {
         <div
           className="card"
           style={{
-            marginBottom: "24px"
+            marginBottom: "18px"
           }}
         >
           <span className="eyebrow">
             MOJMEŠTAR
           </span>
 
-          <h1>
+          <h1
+            style={{
+              marginBottom: "12px"
+            }}
+          >
             {profile.company_name ||
               "Majstor"}
           </h1>
@@ -415,83 +426,100 @@ export default function PublicMajstorPage() {
             <div
               className="badge"
               style={{
-                marginBottom: "16px"
+                marginBottom: "14px"
               }}
             >
               Verificirani majstor
             </div>
           )}
 
+          {reviews.length ? (
+            <div
+              style={{
+                marginBottom: "14px"
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "28px",
+                  lineHeight: 1
+                }}
+              >
+                {renderStars(
+                  averageRating
+                )}
+              </div>
+
+              <p
+                style={{
+                  margin: "7px 0 0"
+                }}
+              >
+                <strong>
+                  {averageRating.toFixed(
+                    1
+                  )}
+                </strong>{" "}
+                od 5 ·{" "}
+                {reviews.length}{" "}
+                {reviews.length === 1
+                  ? "ocjena"
+                  : "ocjena"}
+              </p>
+            </div>
+          ) : (
+            <p className="muted">
+              Još nema ocjena.
+            </p>
+          )}
+
           <div
             style={{
-              marginBottom: "16px"
+              display: "grid",
+              gap: "8px"
             }}
           >
-            {reviews.length ? (
-              <>
-                <div
-                  style={{
-                    fontSize: "28px",
-                    lineHeight: 1.2
-                  }}
-                >
-                  {renderStars(
-                    averageRating
-                  )}
-                </div>
+            {(profile.address ||
+              profile.zip) && (
+              <p
+                style={{
+                  margin: 0
+                }}
+              >
+                <strong>
+                  Lokacija:
+                </strong>{" "}
+                {profile.address || ""}
+                {profile.address &&
+                profile.zip
+                  ? ", "
+                  : ""}
+                {profile.zip || ""}
+              </p>
+            )}
 
-                <p
-                  style={{
-                    margin:
-                      "6px 0 0"
-                  }}
-                >
-                  <strong>
-                    {averageRating.toFixed(
-                      1
-                    )}
-                  </strong>{" "}
-                  od 5 ·{" "}
-                  {reviews.length}{" "}
-                  ocjena
-                </p>
-              </>
-            ) : (
-              <p className="muted">
-                Još nema ocjena.
+            {profile.service_radius_km && (
+              <p
+                style={{
+                  margin: 0
+                }}
+              >
+                <strong>
+                  Radijus usluge:
+                </strong>{" "}
+                {
+                  profile.service_radius_km
+                }{" "}
+                km
               </p>
             )}
           </div>
-
-          {(profile.address ||
-            profile.zip) && (
-            <p>
-              <strong>
-                Lokacija:
-              </strong>{" "}
-              {profile.address || ""}
-              {profile.address &&
-              profile.zip
-                ? ", "
-                : ""}
-              {profile.zip || ""}
-            </p>
-          )}
-
-          {profile.service_radius_km && (
-            <p>
-              <strong>
-                Radijus usluge:
-              </strong>{" "}
-              {profile.service_radius_km} km
-            </p>
-          )}
         </div>
 
         <div
           className="card"
           style={{
-            marginBottom: "24px"
+            marginBottom: "18px"
           }}
         >
           <span className="eyebrow">
@@ -502,7 +530,11 @@ export default function PublicMajstorPage() {
             Opis
           </h2>
 
-          <p>
+          <p
+            style={{
+              marginBottom: 0
+            }}
+          >
             {profile.bio ||
               "Majstor još nije dodao opis profila."}
           </p>
@@ -511,7 +543,7 @@ export default function PublicMajstorPage() {
         <div
           className="card"
           style={{
-            marginBottom: "24px"
+            marginBottom: "18px"
           }}
         >
           <span className="eyebrow">
@@ -553,7 +585,7 @@ export default function PublicMajstorPage() {
           <div
             className="card"
             style={{
-              marginBottom: "24px"
+              marginBottom: "18px"
             }}
           >
             <span className="eyebrow">
@@ -564,7 +596,12 @@ export default function PublicMajstorPage() {
               Referentne fotografije
             </h2>
 
-            <p className="muted">
+            <p
+              className="muted"
+              style={{
+                marginBottom: "16px"
+              }}
+            >
               Pogledajte neke od završenih radova ovog majstora.
             </p>
 
@@ -572,9 +609,8 @@ export default function PublicMajstorPage() {
               style={{
                 display: "grid",
                 gridTemplateColumns:
-                  "repeat(auto-fit, minmax(150px, 1fr))",
-                gap: "14px",
-                marginTop: "16px"
+                  "repeat(auto-fit, minmax(145px, 1fr))",
+                gap: "12px"
               }}
             >
               {profile.portfolio_urls.map(
@@ -586,12 +622,13 @@ export default function PublicMajstorPage() {
                     rel="noopener noreferrer"
                     style={{
                       display: "block",
-                      borderRadius: "16px",
+                      borderRadius: "18px",
                       overflow: "hidden",
                       border:
                         "1px solid var(--border)",
                       background:
-                        "var(--card)"
+                        "var(--card)",
+                      aspectRatio: "1 / 1"
                     }}
                   >
                     <img
@@ -599,7 +636,7 @@ export default function PublicMajstorPage() {
                       alt={`Referentna fotografija ${index + 1}`}
                       style={{
                         width: "100%",
-                        height: "180px",
+                        height: "100%",
                         objectFit: "cover",
                         display: "block"
                       }}
@@ -617,7 +654,7 @@ export default function PublicMajstorPage() {
               onSubmit={submitReview}
               className="card form"
               style={{
-                marginBottom: "24px"
+                marginBottom: "18px"
               }}
             >
               <span className="eyebrow">
@@ -695,7 +732,7 @@ export default function PublicMajstorPage() {
             <div
               className="card"
               style={{
-                marginBottom: "24px"
+                marginBottom: "18px"
               }}
             >
               <span className="eyebrow">
@@ -719,13 +756,22 @@ export default function PublicMajstorPage() {
 
               <p>
                 <strong>
-                  {existingReview.rating}/5
+                  {
+                    existingReview.rating
+                  }
+                  /5
                 </strong>
               </p>
 
               {existingReview.comment && (
-                <p>
-                  {existingReview.comment}
+                <p
+                  style={{
+                    marginBottom: 0
+                  }}
+                >
+                  {
+                    existingReview.comment
+                  }
                 </p>
               )}
             </div>
@@ -734,7 +780,7 @@ export default function PublicMajstorPage() {
         <div
           className="card"
           style={{
-            marginBottom: "24px"
+            marginBottom: "18px"
           }}
         >
           <span className="eyebrow">
@@ -753,7 +799,7 @@ export default function PublicMajstorPage() {
             <div
               style={{
                 display: "grid",
-                gap: "14px"
+                gap: "12px"
               }}
             >
               {reviews.map(
@@ -761,17 +807,18 @@ export default function PublicMajstorPage() {
                   <div
                     key={review.id}
                     style={{
-                      padding: "16px",
+                      padding: "14px",
                       border:
                         "1px solid var(--border)",
                       borderRadius:
-                        "14px"
+                        "16px"
                     }}
                   >
                     <div
                       style={{
                         fontSize:
-                          "22px"
+                          "22px",
+                        lineHeight: 1
                       }}
                     >
                       {renderStars(
@@ -796,7 +843,9 @@ export default function PublicMajstorPage() {
                       </p>
                     )}
 
-                    <small>
+                    <small
+                      className="muted"
+                    >
                       {formatDate(
                         review.created_at
                       )}
@@ -809,6 +858,10 @@ export default function PublicMajstorPage() {
         </div>
 
         <div className="card">
+          <span className="eyebrow">
+            MOJMEŠTAR
+          </span>
+
           <h2>
             Trebate majstora?
           </h2>
