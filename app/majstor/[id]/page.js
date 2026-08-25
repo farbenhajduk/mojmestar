@@ -324,8 +324,7 @@ export default function PublicMajstorPage() {
             <h1>Majstor</h1>
 
             <p>
-              Aplikacija nije ispravno
-              konfigurirana.
+              Aplikacija nije ispravno konfigurirana.
             </p>
           </div>
         </div>
@@ -342,7 +341,9 @@ export default function PublicMajstorPage() {
               MOJMEŠTAR
             </span>
 
-            <h1>Profil majstora</h1>
+            <h1>
+              Profil majstora
+            </h1>
 
             <p className="muted">
               Učitavanje...
@@ -497,7 +498,9 @@ export default function PublicMajstorPage() {
             O majstoru
           </span>
 
-          <h2>Opis</h2>
+          <h2>
+            Opis
+          </h2>
 
           <p>
             {profile.bio ||
@@ -557,12 +560,21 @@ export default function PublicMajstorPage() {
               Portfolio
             </span>
 
-            <h2>Radovi</h2>
+            <h2>
+              Referentne fotografije
+            </h2>
+
+            <p className="muted">
+              Pogledajte neke od završenih radova ovog majstora.
+            </p>
 
             <div
               style={{
                 display: "grid",
-                gap: "12px"
+                gridTemplateColumns:
+                  "repeat(auto-fit, minmax(150px, 1fr))",
+                gap: "14px",
+                marginTop: "16px"
               }}
             >
               {profile.portfolio_urls.map(
@@ -572,10 +584,26 @@ export default function PublicMajstorPage() {
                     href={url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="button secondary"
+                    style={{
+                      display: "block",
+                      borderRadius: "16px",
+                      overflow: "hidden",
+                      border:
+                        "1px solid var(--border)",
+                      background:
+                        "var(--card)"
+                    }}
                   >
-                    Pogledaj rad{" "}
-                    {index + 1}
+                    <img
+                      src={url}
+                      alt={`Referentna fotografija ${index + 1}`}
+                      style={{
+                        width: "100%",
+                        height: "180px",
+                        objectFit: "cover",
+                        display: "block"
+                      }}
+                    />
                   </a>
                 )
               )}
@@ -719,8 +747,7 @@ export default function PublicMajstorPage() {
 
           {!reviews.length ? (
             <p className="muted">
-              Ovaj majstor još nema
-              recenzija.
+              Ovaj majstor još nema recenzija.
             </p>
           ) : (
             <div
@@ -787,8 +814,7 @@ export default function PublicMajstorPage() {
           </h2>
 
           <p>
-            Objavite posao i pronađite
-            odgovarajućeg majstora.
+            Objavite posao i pronađite odgovarajućeg majstora.
           </p>
 
           <div className="actions">
