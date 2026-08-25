@@ -10,6 +10,7 @@ export default function PublicMajstorPage() {
 
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
+  const [reviews, setReviews] = useState([]);
   const [message, setMessage] = useState("");
 
   const supabaseUrl =
@@ -65,10 +66,39 @@ export default function PublicMajstorPage() {
       setProfile(publicProfile);
 
       if (!publicProfile) {
+        setReviews([]);
         setMessage(
           "Profil majstora nije pronađen."
         );
+        return;
       }
+
+      const {
+        data: reviewData,
+        error: reviewError
+      } = await supabase
+        .from("pro_reviews")
+        .select(
+          "id, rating, comment, created_at"
+        )
+        .eq(
+          "pro_id",
+          params.id
+        )
+        .order(
+          "created_at",
+          {
+            ascending: false
+          }
+        );
+
+      if (reviewError) {
+        throw reviewError;
+      }
+
+      setReviews(
+        reviewData || []
+      );
     } catch (err) {
       console.error(err);
 
@@ -78,6 +108,61 @@ export default function PublicMajstorPage() {
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+  const averageRating =
+    useMemo(() => {
+      if (!reviews.length) {
+        return 0;
+      }
+
+      const total =
+        reviews.reduce(
+          (sum, review) =>
+            sum +
+            Number(
+              review.rating || 0
+            ),
+          0
+        );
+
+      return total / reviews.length;
+    }, [reviews]);
+
+  function renderStars(rating) {
+    const rounded =
+      Math.round(
+        Number(rating) || 0
+      );
+
+    return Array.from(
+      { length: 5 },
+      (_, index) =>
+        index < rounded
+          ? "★"
+          : "☆"
+    ).join("");
+  }
+
+  function formatDate(value) {
+    if (!value) {
+      return "";
+    }
+
+    try {
+      return new Intl.DateTimeFormat(
+        "hr-HR",
+        {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric"
+        }
+      ).format(
+        new Date(value)
+      );
+    } catch {
+      return "";
     }
   }
 
@@ -127,7 +212,9 @@ export default function PublicMajstorPage() {
               MOJMEŠTAR
             </span>
 
-            <h1>Profil nije pronađen</h1>
+            <h1>
+              Profil nije pronađen
+            </h1>
 
             <p>
               {message ||
@@ -177,10 +264,55 @@ export default function PublicMajstorPage() {
             </div>
           )}
 
+          <div
+            style={{
+              marginBottom: "16px"
+            }}
+          >
+            {reviews.length ? (
+              <>
+                <div
+                  style={{
+                    fontSize: "28px",
+                    lineHeight: 1.2
+                  }}
+                >
+                  {renderStars(
+                    averageRating
+                  )}
+                </div>
+
+                <p
+                  style={{
+                    margin:
+                      "6px 0 0"
+                  }}
+                >
+                  <strong>
+                    {averageRating.toFixed(
+                      1
+                    )}
+                  </strong>{" "}
+                  od 5 ·{" "}
+                  {reviews.length}{" "}
+                  {reviews.length === 1
+                    ? "ocjena"
+                    : "ocjena"}
+                </p>
+              </>
+            ) : (
+              <p className="muted">
+                Još nema ocjena.
+              </p>
+            )}
+          </div>
+
           {(profile.address ||
             profile.zip) && (
             <p>
-              <strong>Lokacija:</strong>{" "}
+              <strong>
+                Lokacija:
+              </strong>{" "}
               {profile.address || ""}
               {profile.address &&
               profile.zip
@@ -228,7 +360,9 @@ export default function PublicMajstorPage() {
             Usluge
           </span>
 
-          <h2>Područja rada</h2>
+          <h2>
+            Područja rada
+          </h2>
 
           {profile.categories?.length ? (
             <div
@@ -294,8 +428,88 @@ export default function PublicMajstorPage() {
           </div>
         )}
 
+        <div
+          className="card"
+          style={{
+            marginBottom: "24px"
+          }}
+        >
+          <span className="eyebrow">
+            Ocjene
+          </span>
+
+          <h2>
+            Recenzije korisnika
+          </h2>
+
+          {!reviews.length ? (
+            <p className="muted">
+              Ovaj majstor još nema
+              recenzija.
+            </p>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gap: "14px"
+              }}
+            >
+              {reviews.map(
+                review => (
+                  <div
+                    key={review.id}
+                    style={{
+                      padding: "16px",
+                      border:
+                        "1px solid var(--border)",
+                      borderRadius:
+                        "14px"
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize:
+                          "22px"
+                      }}
+                    >
+                      {renderStars(
+                        review.rating
+                      )}
+                    </div>
+
+                    <p
+                      style={{
+                        margin:
+                          "8px 0"
+                      }}
+                    >
+                      <strong>
+                        {review.rating}/5
+                      </strong>
+                    </p>
+
+                    {review.comment && (
+                      <p>
+                        {review.comment}
+                      </p>
+                    )}
+
+                    <small>
+                      {formatDate(
+                        review.created_at
+                      )}
+                    </small>
+                  </div>
+                )
+              )}
+            </div>
+          )}
+        </div>
+
         <div className="card">
-          <h2>Trebate majstora?</h2>
+          <h2>
+            Trebate majstora?
+          </h2>
 
           <p>
             Objavite posao i pronađite
