@@ -30,6 +30,7 @@ export default function JobsPage() {
   const [interestsByJob, setInterestsByJob] = useState({});
 
   const [submitting, setSubmitting] = useState(false);
+  const [selectingPro, setSelectingPro] = useState("");
 
   const supabaseUrl =
     process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -122,7 +123,9 @@ export default function JobsPage() {
 
         setUserProfile(profile);
 
-        if (profile?.role === "pro") {
+        if (
+          profile?.role === "pro"
+        ) {
           const {
             data: pp,
             error: ppError
@@ -136,8 +139,13 @@ export default function JobsPage() {
             .maybeSingle();
 
           if (ppError) {
-            console.error(ppError);
-            setProProfile(null);
+            console.error(
+              ppError
+            );
+
+            setProProfile(
+              null
+            );
           } else {
             setProProfile(
               pp || null
@@ -172,11 +180,14 @@ export default function JobsPage() {
       const loadedJobs =
         data || [];
 
-      setJobs(loadedJobs);
+      setJobs(
+        loadedJobs
+      );
 
       if (
         authUser &&
-        profile?.role === "customer"
+        profile?.role ===
+          "customer"
       ) {
         const ownJobIds =
           loadedJobs
@@ -186,10 +197,13 @@ export default function JobsPage() {
                 authUser.id
             )
             .map(
-              job => job.id
+              job =>
+                job.id
             );
 
-        if (ownJobIds.length) {
+        if (
+          ownJobIds.length
+        ) {
           const {
             data: interestRows,
             error: interestError
@@ -209,7 +223,9 @@ export default function JobsPage() {
               }
             );
 
-          if (interestError) {
+          if (
+            interestError
+          ) {
             throw interestError;
           }
 
@@ -240,15 +256,20 @@ export default function JobsPage() {
             grouped
           );
         } else {
-          setInterestsByJob({});
+          setInterestsByJob(
+            {}
+          );
         }
       } else {
-        setInterestsByJob({});
+        setInterestsByJob(
+          {}
+        );
       }
 
       if (
         authUser &&
-        profile?.role === "pro"
+        profile?.role ===
+          "pro"
       ) {
         const results =
           await Promise.all(
@@ -283,11 +304,15 @@ export default function JobsPage() {
 
         setUnlockedPhones(
           Object.fromEntries(
-            results.filter(Boolean)
+            results.filter(
+              Boolean
+            )
           )
         );
       } else {
-        setUnlockedPhones({});
+        setUnlockedPhones(
+          {}
+        );
       }
     } catch (err) {
       console.error(err);
@@ -315,7 +340,8 @@ export default function JobsPage() {
       const ext =
         file.name
           .split(".")
-          .pop() || "jpg";
+          .pop() ||
+        "jpg";
 
       const fileName =
         `${userId}/${crypto.randomUUID()}.${ext}`;
@@ -395,7 +421,8 @@ export default function JobsPage() {
         );
 
       if (
-        profile?.role === "pro"
+        profile?.role ===
+        "pro"
       ) {
         setMessage(
           "Majstorski račun ne može objavljivati poslove."
@@ -415,7 +442,8 @@ export default function JobsPage() {
         );
 
       if (
-        files.length > 5
+        files.length >
+        5
       ) {
         setMessage(
           "Možete dodati najviše 5 fotografija."
@@ -459,7 +487,9 @@ export default function JobsPage() {
             }
           );
 
-        if (geoRes.ok) {
+        if (
+          geoRes.ok
+        ) {
           const geo =
             await geoRes.json();
 
@@ -471,7 +501,9 @@ export default function JobsPage() {
             geo?.longitude ??
             null;
         }
-      } catch (geoError) {
+      } catch (
+        geoError
+      ) {
         console.warn(
           "Geocoding nije uspio:",
           geoError
@@ -503,12 +535,16 @@ export default function JobsPage() {
 
           city:
             formData
-              .get("city")
+              .get(
+                "city"
+              )
               ?.trim(),
 
           zip:
             formData
-              .get("zip")
+              .get(
+                "zip"
+              )
               ?.trim(),
 
           description:
@@ -564,7 +600,9 @@ export default function JobsPage() {
     }
   }
 
-  async function closeJob(job) {
+  async function closeJob(
+    job
+  ) {
     if (!supabase) {
       return;
     }
@@ -622,7 +660,9 @@ export default function JobsPage() {
     }
   }
 
-  async function deleteJob(job) {
+  async function deleteJob(
+    job
+  ) {
     if (!supabase) {
       return;
     }
@@ -680,7 +720,94 @@ export default function JobsPage() {
     }
   }
 
-  async function showInterest(job) {
+  async function selectPro(
+    job,
+    interest
+  ) {
+    if (
+      !supabase ||
+      !currentUserId
+    ) {
+      return;
+    }
+
+    if (
+      job.customer_id !==
+      currentUserId
+    ) {
+      alert(
+        "Majstora može odabrati samo naručitelj ovog posla."
+      );
+      return;
+    }
+
+    if (
+      job.selected_pro_id
+    ) {
+      alert(
+        "Majstor za ovaj posao već je odabran."
+      );
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        "Želite li odabrati ovog majstora za posao?"
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const loadingKey =
+      `${job.id}-${interest.pro_id}`;
+
+    setSelectingPro(
+      loadingKey
+    );
+
+    setMessage("");
+
+    try {
+      const {
+        error
+      } = await supabase.rpc(
+        "select_job_pro",
+        {
+          p_job_id:
+            job.id,
+
+          p_pro_id:
+            interest.pro_id
+        }
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      setMessage(
+        "Majstor je odabran za posao."
+      );
+
+      await loadAll();
+    } catch (err) {
+      console.error(err);
+
+      alert(
+        err?.message ||
+          "Majstor se nije mogao odabrati."
+      );
+    } finally {
+      setSelectingPro(
+        ""
+      );
+    }
+  }
+
+  async function showInterest(
+    job
+  ) {
     if (!supabase) {
       return;
     }
@@ -714,7 +841,8 @@ export default function JobsPage() {
     }
 
     if (
-      profile?.role !== "pro"
+      profile?.role !==
+      "pro"
     ) {
       alert(
         "Ova funkcija dostupna je samo registriranim majstorima."
@@ -771,7 +899,9 @@ export default function JobsPage() {
     );
   }
 
-  async function unlockContact(job) {
+  async function unlockContact(
+    job
+  ) {
     if (!supabase) {
       return;
     }
@@ -805,7 +935,8 @@ export default function JobsPage() {
       }
 
       if (
-        profile?.role !== "pro"
+        profile?.role !==
+        "pro"
       ) {
         alert(
           "Kontakt mogu otključati samo registrirani majstori."
@@ -839,7 +970,9 @@ export default function JobsPage() {
           }
         );
 
-      if (contactError) {
+      if (
+        contactError
+      ) {
         throw contactError;
       }
 
@@ -850,6 +983,7 @@ export default function JobsPage() {
       setUnlockedPhones(
         prev => ({
           ...prev,
+
           [job.id]:
             phone
         })
@@ -887,8 +1021,10 @@ export default function JobsPage() {
           if (
             userProfile?.role ===
               "pro" &&
-            proProfile?.latitude != null &&
-            proProfile?.longitude != null &&
+            proProfile?.latitude !=
+              null &&
+            proProfile?.longitude !=
+              null &&
             job.latitude != null &&
             job.longitude != null
           ) {
@@ -911,11 +1047,13 @@ export default function JobsPage() {
             const radius =
               Number(
                 proProfile.service_radius_km
-              ) || 50;
+              ) ||
+              50;
 
             radiusOk =
               distance == null ||
-              distance <= radius;
+              distance <=
+                radius;
           }
 
           return (
@@ -952,7 +1090,8 @@ export default function JobsPage() {
       <div className="container">
         <div
           style={{
-            marginBottom: "24px"
+            marginBottom:
+              "24px"
           }}
         >
           <span className="eyebrow">
@@ -985,7 +1124,9 @@ export default function JobsPage() {
               </p>
             ) : (
               <form
-                onSubmit={submit}
+                onSubmit={
+                  submit
+                }
                 className="form"
               >
                 <label>
@@ -1108,7 +1249,8 @@ export default function JobsPage() {
             {message && (
               <p
                 style={{
-                  marginTop: "14px"
+                  marginTop:
+                    "14px"
                 }}
               >
                 {message}
@@ -1119,7 +1261,8 @@ export default function JobsPage() {
           <div>
             <div
               style={{
-                marginBottom: "18px"
+                marginBottom:
+                  "18px"
               }}
             >
               <span className="eyebrow">
@@ -1140,8 +1283,10 @@ export default function JobsPage() {
               <div
                 className="card"
                 style={{
-                  marginBottom: "16px",
-                  padding: "14px"
+                  marginBottom:
+                    "16px",
+                  padding:
+                    "14px"
                 }}
               >
                 <strong>
@@ -1162,7 +1307,8 @@ export default function JobsPage() {
             <div
               className="filters"
               style={{
-                marginBottom: "18px"
+                marginBottom:
+                  "18px"
               }}
             >
               <input
@@ -1228,18 +1374,22 @@ export default function JobsPage() {
                         job.id
                       }
                       style={{
-                        marginBottom: "16px"
+                        marginBottom:
+                          "16px"
                       }}
                     >
                       <div
                         style={{
-                          display: "flex",
+                          display:
+                            "flex",
                           justifyContent:
                             "space-between",
                           alignItems:
                             "flex-start",
-                          gap: "10px",
-                          flexWrap: "wrap"
+                          gap:
+                            "10px",
+                          flexWrap:
+                            "wrap"
                         }}
                       >
                         <span className="badge">
@@ -1251,14 +1401,22 @@ export default function JobsPage() {
                             Moj posao
                           </span>
                         )}
+
+                        {job.selected_pro_id && (
+                          <span className="badge">
+                            Majstor odabran
+                          </span>
+                        )}
                       </div>
 
                       <h3
                         style={{
-                          marginBottom: "6px"
+                          marginBottom:
+                            "6px"
                         }}
                       >
                         {job.city}
+
                         {job.zip
                           ? ` · ${job.zip}`
                           : ""}
@@ -1281,41 +1439,60 @@ export default function JobsPage() {
                         {job.description}
                       </p>
 
-                      {job.image_urls?.length >
+                      {job.image_urls
+                        ?.length >
                         0 && (
                         <div
                           style={{
-                            display: "grid",
+                            display:
+                              "grid",
                             gridTemplateColumns:
                               "repeat(auto-fit, minmax(105px, 1fr))",
-                            gap: "10px",
-                            marginTop: "14px"
+                            gap:
+                              "10px",
+                            marginTop:
+                              "14px"
                           }}
                         >
                           {job.image_urls.map(
-                            (url, index) => (
+                            (
+                              url,
+                              index
+                            ) => (
                               <a
                                 key={`${url}-${index}`}
-                                href={url}
+                                href={
+                                  url
+                                }
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 style={{
-                                  display: "block",
-                                  aspectRatio: "1 / 1",
-                                  overflow: "hidden",
-                                  borderRadius: "14px",
+                                  display:
+                                    "block",
+                                  aspectRatio:
+                                    "1 / 1",
+                                  overflow:
+                                    "hidden",
+                                  borderRadius:
+                                    "14px",
                                   border:
                                     "1px solid var(--border)"
                                 }}
                               >
                                 <img
-                                  src={url}
+                                  src={
+                                    url
+                                  }
                                   alt={`Fotografija posla ${index + 1}`}
                                   style={{
-                                    width: "100%",
-                                    height: "100%",
-                                    objectFit: "cover",
-                                    display: "block"
+                                    width:
+                                      "100%",
+                                    height:
+                                      "100%",
+                                    objectFit:
+                                      "cover",
+                                    display:
+                                      "block"
                                   }}
                                 />
                               </a>
@@ -1327,21 +1504,26 @@ export default function JobsPage() {
                       {isOwner && (
                         <div
                           style={{
-                            marginTop: "18px",
-                            paddingTop: "16px",
+                            marginTop:
+                              "18px",
+                            paddingTop:
+                              "16px",
                             borderTop:
                               "1px solid var(--border)"
                           }}
                         >
                           <div
                             style={{
-                              display: "flex",
+                              display:
+                                "flex",
                               justifyContent:
                                 "space-between",
                               alignItems:
                                 "center",
-                              gap: "10px",
-                              flexWrap: "wrap"
+                              gap:
+                                "10px",
+                              flexWrap:
+                                "wrap"
                             }}
                           >
                             <strong>
@@ -1349,7 +1531,9 @@ export default function JobsPage() {
                             </strong>
 
                             <span className="badge">
-                              {jobInterests.length}
+                              {
+                                jobInterests.length
+                              }
                             </span>
                           </div>
 
@@ -1357,7 +1541,8 @@ export default function JobsPage() {
                             <p
                               className="muted"
                               style={{
-                                marginBottom: 0
+                                marginBottom:
+                                  0
                               }}
                             >
                               Još nema zainteresiranih majstora.
@@ -1365,41 +1550,119 @@ export default function JobsPage() {
                           ) : (
                             <div
                               style={{
-                                display: "grid",
-                                gap: "10px",
-                                marginTop: "12px"
+                                display:
+                                  "grid",
+                                gap:
+                                  "10px",
+                                marginTop:
+                                  "12px"
                               }}
                             >
                               {jobInterests.map(
-                                interest => (
-                                  <div
-                                    key={
-                                      interest.id
-                                    }
-                                    style={{
-                                      padding: "14px",
-                                      border:
-                                        "1px solid var(--border)",
-                                      borderRadius: "14px"
-                                    }}
-                                  >
-                                    <p
+                                interest => {
+                                  const isSelected =
+                                    job.selected_pro_id ===
+                                    interest.pro_id;
+
+                                  const anotherSelected =
+                                    job.selected_pro_id &&
+                                    !isSelected;
+
+                                  const loadingKey =
+                                    `${job.id}-${interest.pro_id}`;
+
+                                  return (
+                                    <div
+                                      key={
+                                        interest.id
+                                      }
                                       style={{
-                                        marginTop: 0
+                                        padding:
+                                          "14px",
+                                        border:
+                                          isSelected
+                                            ? "2px solid currentColor"
+                                            : "1px solid var(--border)",
+                                        borderRadius:
+                                          "14px"
                                       }}
                                     >
-                                      {interest.message ||
-                                        "Majstor je zainteresiran za posao."}
-                                    </p>
+                                      {isSelected && (
+                                        <div
+                                          className="badge"
+                                          style={{
+                                            marginBottom:
+                                              "10px"
+                                          }}
+                                        >
+                                          Odabrani majstor
+                                        </div>
+                                      )}
 
-                                    <Link
-                                      href={`/majstor/${interest.pro_id}`}
-                                      className="button secondary small"
-                                    >
-                                      Pogledaj profil
-                                    </Link>
-                                  </div>
-                                )
+                                      <p
+                                        style={{
+                                          marginTop:
+                                            0
+                                        }}
+                                      >
+                                        {interest.message ||
+                                          "Majstor je zainteresiran za posao."}
+                                      </p>
+
+                                      <div
+                                        style={{
+                                          display:
+                                            "flex",
+                                          flexWrap:
+                                            "wrap",
+                                          gap:
+                                            "8px"
+                                        }}
+                                      >
+                                        <Link
+                                          href={`/majstor/${interest.pro_id}`}
+                                          className="button secondary small"
+                                        >
+                                          Pogledaj profil
+                                        </Link>
+
+                                        {!job.selected_pro_id && (
+                                          <button
+                                            type="button"
+                                            className="button small"
+                                            disabled={
+                                              selectingPro ===
+                                              loadingKey
+                                            }
+                                            onClick={() =>
+                                              selectPro(
+                                                job,
+                                                interest
+                                              )
+                                            }
+                                          >
+                                            {selectingPro ===
+                                            loadingKey
+                                              ? "Odabirem..."
+                                              : "Odaberi majstora"}
+                                          </button>
+                                        )}
+
+                                        {anotherSelected && (
+                                          <span
+                                            className="muted"
+                                            style={{
+                                              alignSelf:
+                                                "center"
+                                            }}
+                                          >
+                                            Drugi majstor je već odabran.
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                }
                               )}
                             </div>
                           )}
@@ -1408,8 +1671,10 @@ export default function JobsPage() {
 
                       <div
                         style={{
-                          marginTop: "18px",
-                          paddingTop: "16px",
+                          marginTop:
+                            "18px",
+                          paddingTop:
+                            "16px",
                           borderTop:
                             "1px solid var(--border)"
                         }}
@@ -1417,9 +1682,12 @@ export default function JobsPage() {
                         {isOwner && (
                           <div
                             style={{
-                              display: "flex",
-                              flexWrap: "wrap",
-                              gap: "8px"
+                              display:
+                                "flex",
+                              flexWrap:
+                                "wrap",
+                              gap:
+                                "8px"
                             }}
                           >
                             <button
@@ -1453,53 +1721,80 @@ export default function JobsPage() {
                             "pro" && (
                             <div
                               style={{
-                                display: "grid",
-                                gap: "8px"
+                                display:
+                                  "grid",
+                                gap:
+                                  "8px"
                               }}
                             >
-                              <button
-                                type="button"
-                                className="button"
-                                onClick={() =>
-                                  showInterest(
-                                    job
-                                  )
-                                }
-                              >
-                                Zanima me posao
-                              </button>
-
-                              {unlockedPhones[
-                                job.id
-                              ] ? (
-                                <a
-                                  className="button secondary"
-                                  href={`tel:${unlockedPhones[
-                                    job.id
-                                  ].replace(
-                                    /\s+/g,
-                                    ""
-                                  )}`}
+                              {job.selected_pro_id ===
+                              currentUserId ? (
+                                <div
+                                  className="badge"
+                                  style={{
+                                    padding:
+                                      "12px"
+                                  }}
                                 >
-                                  Nazovi:{" "}
-                                  {
-                                    unlockedPhones[
-                                      job.id
-                                    ]
-                                  }
-                                </a>
+                                  Odabrani ste za ovaj posao
+                                </div>
+                              ) : job.selected_pro_id ? (
+                                <p
+                                  className="muted"
+                                  style={{
+                                    margin:
+                                      0
+                                  }}
+                                >
+                                  Naručitelj je već odabrao majstora za ovaj posao.
+                                </p>
                               ) : (
-                                <button
-                                  type="button"
-                                  className="button secondary"
-                                  onClick={() =>
-                                    unlockContact(
-                                      job
-                                    )
-                                  }
-                                >
-                                  Otključaj kontakt
-                                </button>
+                                <>
+                                  <button
+                                    type="button"
+                                    className="button"
+                                    onClick={() =>
+                                      showInterest(
+                                        job
+                                      )
+                                    }
+                                  >
+                                    Zanima me posao
+                                  </button>
+
+                                  {unlockedPhones[
+                                    job.id
+                                  ] ? (
+                                    <a
+                                      className="button secondary"
+                                      href={`tel:${unlockedPhones[
+                                        job.id
+                                      ].replace(
+                                        /\s+/g,
+                                        ""
+                                      )}`}
+                                    >
+                                      Nazovi:{" "}
+                                      {
+                                        unlockedPhones[
+                                          job.id
+                                        ]
+                                      }
+                                    </a>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      className="button secondary"
+                                      onClick={() =>
+                                        unlockContact(
+                                          job
+                                        )
+                                      }
+                                    >
+                                      Otključaj kontakt
+                                    </button>
+                                  )}
+                                </>
                               )}
                             </div>
                           )}
@@ -1518,7 +1813,8 @@ export default function JobsPage() {
                   <p
                     className="muted"
                     style={{
-                      marginBottom: 0
+                      marginBottom:
+                        0
                     }}
                   >
                     Nema aktivnih poslova koji odgovaraju odabranom filtru.
