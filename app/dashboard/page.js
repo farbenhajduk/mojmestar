@@ -116,8 +116,7 @@ export default function DashboardPage() {
       setProfile(currentProfile);
 
       if (
-        currentProfile?.role ===
-        "customer"
+        currentProfile?.role === "customer"
       ) {
         await loadCustomerJobs(
           authUser.id
@@ -143,9 +142,7 @@ export default function DashboardPage() {
     }
   }
 
-  async function loadCustomerJobs(
-    userId
-  ) {
+  async function loadCustomerJobs(userId) {
     const {
       data,
       error
@@ -171,9 +168,7 @@ export default function DashboardPage() {
     setMyInterests([]);
   }
 
-  async function loadProInterests(
-    userId
-  ) {
+  async function loadProInterests(userId) {
     const {
       data: interests,
       error: interestsError
@@ -281,16 +276,11 @@ export default function DashboardPage() {
       return "Aktivan";
     }
 
-    if (
-      status === "completed"
-    ) {
+    if (status === "completed") {
       return "Završen";
     }
 
-    return (
-      status ||
-      "Nepoznato"
-    );
+    return status || "Nepoznato";
   }
 
   const activeJobs =
@@ -372,7 +362,8 @@ export default function DashboardPage() {
             alignItems:
               "flex-start",
             gap: "10px",
-            flexWrap: "wrap"
+            flexWrap:
+              "wrap"
           }}
         >
           <span className="badge">
@@ -388,7 +379,6 @@ export default function DashboardPage() {
 
         <h3>
           {job.city}
-
           {job.zip
             ? ` · ${job.zip}`
             : ""}
@@ -407,7 +397,7 @@ export default function DashboardPage() {
         <div
           className="rowBetween"
           style={{
-            gap: "12px",
+            gap: "14px",
             flexWrap: "wrap"
           }}
         >
@@ -435,7 +425,8 @@ export default function DashboardPage() {
             style={{
               display: "flex",
               gap: "8px",
-              flexWrap: "wrap"
+              flexWrap:
+                "wrap"
             }}
           >
             {!completed && (
@@ -444,6 +435,15 @@ export default function DashboardPage() {
                 className="button small"
               >
                 Otvori poslove
+              </Link>
+            )}
+
+            {job.selected_pro_id && (
+              <Link
+                href={`/majstor/${job.selected_pro_id}`}
+                className="button secondary small"
+              >
+                Pogledaj majstora
               </Link>
             )}
 
@@ -477,6 +477,12 @@ export default function DashboardPage() {
       job.selected_pro_id ===
       user?.id;
 
+    const anotherSelected =
+      Boolean(
+        job.selected_pro_id &&
+          !isSelected
+      );
+
     return (
       <article
         className="card"
@@ -494,7 +500,8 @@ export default function DashboardPage() {
             alignItems:
               "flex-start",
             gap: "10px",
-            flexWrap: "wrap"
+            flexWrap:
+              "wrap"
           }}
         >
           <span className="badge">
@@ -510,7 +517,6 @@ export default function DashboardPage() {
 
         <h3>
           {job.city}
-
           {job.zip
             ? ` · ${job.zip}`
             : ""}
@@ -534,12 +540,11 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {job.selected_pro_id &&
-          !isSelected && (
-            <p className="muted">
-              Naručitelj je odabrao drugog majstora.
-            </p>
-          )}
+        {anotherSelected && (
+          <p className="muted">
+            Naručitelj je odabrao drugog majstora.
+          </p>
+        )}
 
         {interest.message && (
           <div
@@ -573,7 +578,10 @@ export default function DashboardPage() {
           className="rowBetween"
           style={{
             marginTop:
-              "14px"
+              "14px",
+            gap: "14px",
+            flexWrap:
+              "wrap"
           }}
         >
           <div>
@@ -765,9 +773,27 @@ export default function DashboardPage() {
                 Za naručitelje
               </span>
 
-              <h2>
-                Aktivni poslovi
-              </h2>
+              <div
+                style={{
+                  display:
+                    "flex",
+                  alignItems:
+                    "center",
+                  gap: "10px",
+                  flexWrap:
+                    "wrap"
+                }}
+              >
+                <h2>
+                  Aktivni poslovi
+                </h2>
+
+                <span className="badge">
+                  {
+                    activeJobs.length
+                  }
+                </span>
+              </div>
 
               <div className="jobList">
                 {activeJobs.map(
@@ -798,16 +824,34 @@ export default function DashboardPage() {
             <section
               style={{
                 marginTop:
-                  "28px"
+                  "32px"
               }}
             >
               <span className="eyebrow">
                 Povijest poslova
               </span>
 
-              <h2>
-                Završeni poslovi
-              </h2>
+              <div
+                style={{
+                  display:
+                    "flex",
+                  alignItems:
+                    "center",
+                  gap: "10px",
+                  flexWrap:
+                    "wrap"
+                }}
+              >
+                <h2>
+                  Završeni poslovi
+                </h2>
+
+                <span className="badge">
+                  {
+                    completedJobs.length
+                  }
+                </span>
+              </div>
 
               <div className="jobList">
                 {completedJobs.map(
@@ -838,9 +882,27 @@ export default function DashboardPage() {
                 Za meštre
               </span>
 
-              <h2>
-                Aktivni interesi
-              </h2>
+              <div
+                style={{
+                  display:
+                    "flex",
+                  alignItems:
+                    "center",
+                  gap: "10px",
+                  flexWrap:
+                    "wrap"
+                }}
+              >
+                <h2>
+                  Aktivni interesi
+                </h2>
+
+                <span className="badge">
+                  {
+                    activeInterests.length
+                  }
+                </span>
+              </div>
 
               <div className="jobList">
                 {activeInterests.map(
@@ -871,16 +933,34 @@ export default function DashboardPage() {
             <section
               style={{
                 marginTop:
-                  "28px"
+                  "32px"
               }}
             >
               <span className="eyebrow">
                 Povijest
               </span>
 
-              <h2>
-                Završeni poslovi
-              </h2>
+              <div
+                style={{
+                  display:
+                    "flex",
+                  alignItems:
+                    "center",
+                  gap: "10px",
+                  flexWrap:
+                    "wrap"
+                }}
+              >
+                <h2>
+                  Završeni poslovi
+                </h2>
+
+                <span className="badge">
+                  {
+                    completedInterests.length
+                  }
+                </span>
+              </div>
 
               <div className="jobList">
                 {completedInterests.map(
@@ -906,7 +986,7 @@ export default function DashboardPage() {
               <section
                 style={{
                   marginTop:
-                    "28px"
+                    "32px"
                 }}
               >
                 <span className="eyebrow">
@@ -938,7 +1018,43 @@ export default function DashboardPage() {
                           Posao za koji ste iskazali interes je izbrisan ili više nije dostupan.
                         </p>
 
-                        <small>
+                        {interest.message && (
+                          <div
+                            style={{
+                              padding:
+                                "14px",
+                              background:
+                                "#f7f8fa",
+                              borderRadius:
+                                "12px"
+                            }}
+                          >
+                            <strong>
+                              Moja poruka
+                            </strong>
+
+                            <p
+                              style={{
+                                margin:
+                                  "6px 0 0"
+                              }}
+                            >
+                              {
+                                interest.message
+                              }
+                            </p>
+                          </div>
+                        )}
+
+                        <small
+                          className="muted"
+                          style={{
+                            display:
+                              "block",
+                            marginTop:
+                              "12px"
+                          }}
+                        >
                           Interes poslan:{" "}
                           {formatDate(
                             interest.created_at
