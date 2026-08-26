@@ -6,6 +6,7 @@ import { createBrowserClient } from "@supabase/ssr";
 
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState("");
   const [message, setMessage] = useState("");
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -255,6 +256,58 @@ export default function DashboardPage() {
     setMyJobs([]);
   }
 
+  async function completeJob(jobId) {
+    if (
+      !supabase ||
+      !jobId ||
+      actionLoading
+    ) {
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        "Želite li označiti ovaj posao kao završen?"
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setActionLoading(jobId);
+    setMessage("");
+
+    try {
+      const {
+        error
+      } = await supabase.rpc(
+        "close_job",
+        {
+          p_job_id: jobId
+        }
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      setMessage(
+        "Posao je uspješno označen kao završen."
+      );
+
+      await loadDashboard();
+    } catch (err) {
+      console.error(err);
+
+      setMessage(
+        err?.message ||
+          "Posao nije moguće završiti."
+      );
+    } finally {
+      setActionLoading("");
+    }
+  }
+
   function formatDate(value) {
     if (!value) {
       return "";
@@ -281,6 +334,10 @@ export default function DashboardPage() {
       return "Aktivan";
     }
 
+    if (status === "assigned") {
+      return "U tijeku";
+    }
+
     if (status === "completed") {
       return "Završen";
     }
@@ -288,12 +345,40 @@ export default function DashboardPage() {
     return status || "Nepoznato";
   }
 
-  const activeJobs = useMemo(
+  function statusBadge(status) {
+    if (status === "open") {
+      return "Aktivan";
+    }
+
+    if (status === "assigned") {
+      return "Posao u tijeku";
+    }
+
+    if (status === "completed") {
+      return "Završen";
+    }
+
+    return "Nepoznato";
+  }
+
+  /*
+   * NARUČITELJ
+   */
+
+  const openJobs = useMemo(
     () =>
       myJobs.filter(
         job =>
-          job.status !==
-          "completed"
+          job.status === "open"
+      ),
+    [myJobs]
+  );
+
+  const assignedJobs = useMemo(
+    () =>
+      myJobs.filter(
+        job =>
+          job.status === "assigned"
       ),
     [myJobs]
   );
@@ -302,71 +387,94 @@ export default function DashboardPage() {
     () =>
       myJobs.filter(
         job =>
-          job.status ===
-          "completed"
+          job.status === "completed"
       ),
     [myJobs]
   );
 
-  const activeInterests = useMemo(
-    () =>
-      myInterests.filter(
-        interest =>
-          interest.job &&
-          interest.job.status !==
-            "completed"
-      ),
-    [myInterests]
-  );
+  /*
+   * MAJSTOR
+   */
 
-  const completedInterests = useMemo(
+  const openInterests = useMemo(
     () =>
       myInterests.filter(
         interest =>
           interest.job &&
           interest.job.status ===
-            "completed"
+            "open"
       ),
     [myInterests]
   );
 
-  const unavailableInterests = useMemo(
-    () =>
-      myInterests.filter(
-        interest =>
-          !interest.job
-      ),
-    [myInterests]
-  );
-
-  const selectedActiveInterests =
+  const assignedToMeInterests =
     useMemo(
       () =>
-        activeInterests.filter(
+        myInterests.filter(
           interest =>
+            interest.job &&
+            interest.job.status ===
+              "assigned" &&
             interest.job
-              ?.selected_pro_id ===
-            user?.id
-        ).length,
+              .selected_pro_id ===
+              user?.id
+        ),
       [
-        activeInterests,
+        myInterests,
         user?.id
       ]
     );
 
-  const selectedCompletedInterests =
+  const completedForMeInterests =
     useMemo(
       () =>
-        completedInterests.filter(
+        myInterests.filter(
           interest =>
+            interest.job &&
+            interest.job.status ===
+              "completed" &&
             interest.job
-              ?.selected_pro_id ===
-            user?.id
-        ).length,
+              .selected_pro_id ===
+              user?.id
+        ),
       [
-        completedInterests,
+        myInterests,
         user?.id
       ]
+    );
+
+  const notSelectedInterests =
+    useMemo(
+      () =>
+        myInterests.filter(
+          interest =>
+            interest.job &&
+            interest.job
+              .selected_pro_id &&
+            interest.job
+              .selected_pro_id !==
+              user?.id &&
+            (
+              interest.job.status ===
+                "assigned" ||
+              interest.job.status ===
+                "completed"
+            )
+        ),
+      [
+        myInterests,
+        user?.id
+      ]
+    );
+
+  const unavailableInterests =
+    useMemo(
+      () =>
+        myInterests.filter(
+          interest =>
+            !interest.job
+        ),
+      [myInterests]
     );
 
   function StatCard({
@@ -403,10 +511,20 @@ export default function DashboardPage() {
     );
   }
 
-  function renderCustomerJob(
-    job,
-    completed = false
-  ) {
+  function CustomerJobCard({
+    job
+  }) {
+    const isOpen =
+      job.status === "open";
+
+    const isAssigned =
+      job.status ===
+      "assigned";
+
+    const isCompleted =
+      job.status ===
+      "completed";
+
     return (
       <article
         className="card"
@@ -431,9 +549,9 @@ export default function DashboardPage() {
           </span>
 
           <span className="badge">
-            {completed
-              ? "Završen"
-              : "Aktivan"}
+            {statusBadge(
+              job.status
+            )}
           </span>
         </div>
 
@@ -449,40 +567,88 @@ export default function DashboardPage() {
           {job.description}
         </p>
 
-        {job.selected_pro_id ? (
+        {isOpen && (
           <div
             style={{
               padding: "12px",
               borderRadius: "12px",
               background:
                 "#f7f8fa",
-              marginBottom:
-                "14px"
+              marginBottom: "14px"
             }}
           >
             <strong>
-              Majstor je odabran
+              Posao je otvoren
             </strong>
 
             <p
               className="muted"
               style={{
-                margin:
-                  "5px 0 0"
+                margin: "5px 0 0"
               }}
             >
-              {completed
-                ? "Posao je završen s odabranim majstorom."
-                : "Za ovaj posao već ste odabrali majstora."}
+              Majstori još mogu iskazati interes za ovaj posao.
             </p>
           </div>
-        ) : (
-          !completed && (
-            <p className="muted">
-              Majstor još nije odabran.
-            </p>
-          )
         )}
+
+        {isAssigned &&
+          job.selected_pro_id && (
+            <div
+              style={{
+                padding: "12px",
+                borderRadius:
+                  "12px",
+                background:
+                  "#f7f8fa",
+                marginBottom:
+                  "14px"
+              }}
+            >
+              <strong>
+                Posao je u tijeku
+              </strong>
+
+              <p
+                className="muted"
+                style={{
+                  margin:
+                    "5px 0 0"
+                }}
+              >
+                Majstor je odabran. Kada posao bude gotov, označite ga kao završen.
+              </p>
+            </div>
+          )}
+
+        {isCompleted &&
+          job.selected_pro_id && (
+            <div
+              style={{
+                padding: "12px",
+                borderRadius:
+                  "12px",
+                background:
+                  "#f7f8fa",
+                marginBottom:
+                  "14px"
+              }}
+            >
+              <strong>
+                Posao je završen
+              </strong>
+
+              <p
+                className="muted"
+                style={{
+                  margin:
+                    "5px 0 0"
+                }}
+              >
+                Sada možete ocijeniti odabranog majstora.
+              </p>
+            </div>
+          )}
 
         <div
           className="rowBetween"
@@ -518,7 +684,7 @@ export default function DashboardPage() {
               flexWrap: "wrap"
             }}
           >
-            {!completed && (
+            {isOpen && (
               <Link
                 href="/jobs"
                 className="button small"
@@ -527,17 +693,38 @@ export default function DashboardPage() {
               </Link>
             )}
 
-            {!completed &&
+            {isAssigned &&
               job.selected_pro_id && (
-                <Link
-                  href={`/majstor/${job.selected_pro_id}`}
-                  className="button secondary small"
-                >
-                  Profil majstora
-                </Link>
+                <>
+                  <Link
+                    href={`/majstor/${job.selected_pro_id}`}
+                    className="button secondary small"
+                  >
+                    Profil majstora
+                  </Link>
+
+                  <button
+                    type="button"
+                    className="button small"
+                    disabled={
+                      actionLoading ===
+                      job.id
+                    }
+                    onClick={() =>
+                      completeJob(
+                        job.id
+                      )
+                    }
+                  >
+                    {actionLoading ===
+                    job.id
+                      ? "Spremanje..."
+                      : "Završi posao"}
+                  </button>
+                </>
               )}
 
-            {completed &&
+            {isCompleted &&
               job.selected_pro_id && (
                 <>
                   <Link
@@ -561,10 +748,10 @@ export default function DashboardPage() {
     );
   }
 
-  function renderProInterest(
+  function ProInterestCard({
     interest,
-    completed = false
-  ) {
+    mode = "open"
+  }) {
     if (!interest.job) {
       return null;
     }
@@ -575,12 +762,6 @@ export default function DashboardPage() {
     const isSelected =
       job.selected_pro_id ===
       user?.id;
-
-    const anotherSelected =
-      Boolean(
-        job.selected_pro_id &&
-          !isSelected
-      );
 
     return (
       <article
@@ -606,9 +787,9 @@ export default function DashboardPage() {
           </span>
 
           <span className="badge">
-            {completed
-              ? "Završen"
-              : "Aktivan"}
+            {statusBadge(
+              job.status
+            )}
           </span>
         </div>
 
@@ -624,46 +805,97 @@ export default function DashboardPage() {
           {job.description}
         </p>
 
-        {isSelected && (
-          <div
-            className="card"
-            style={{
-              padding: "12px",
-              marginBottom:
-                "14px",
-              background:
-                "#f7f8fa"
-            }}
-          >
-            <strong>
-              {completed
-                ? "Vi ste odabrani majstor"
-                : "Odabrani ste za posao"}
-            </strong>
-
-            <p
-              className="muted"
-              style={{
-                margin:
-                  "5px 0 0"
-              }}
-            >
-              {completed
-                ? "Ovaj posao je završen i vi ste bili odabrani izvođač."
-                : "Naručitelj je odabrao vas za ovaj posao."}
-            </p>
-          </div>
-        )}
-
-        {anotherSelected && (
+        {mode === "open" && (
           <div
             style={{
               padding: "12px",
               borderRadius: "12px",
               background:
                 "#f7f8fa",
-              marginBottom:
-                "14px"
+              marginBottom: "14px"
+            }}
+          >
+            <strong>
+              Interes je poslan
+            </strong>
+
+            <p
+              className="muted"
+              style={{
+                margin: "5px 0 0"
+              }}
+            >
+              Naručitelj još nije odabrao majstora.
+            </p>
+          </div>
+        )}
+
+        {mode === "assigned" &&
+          isSelected && (
+            <div
+              style={{
+                padding: "12px",
+                borderRadius:
+                  "12px",
+                background:
+                  "#f7f8fa",
+                marginBottom:
+                  "14px"
+              }}
+            >
+              <strong>
+                Odabrani ste za posao
+              </strong>
+
+              <p
+                className="muted"
+                style={{
+                  margin:
+                    "5px 0 0"
+                }}
+              >
+                Posao je u tijeku. Naručitelj će ga označiti kao završen kada radovi budu gotovi.
+              </p>
+            </div>
+          )}
+
+        {mode === "completed" &&
+          isSelected && (
+            <div
+              style={{
+                padding: "12px",
+                borderRadius:
+                  "12px",
+                background:
+                  "#f7f8fa",
+                marginBottom:
+                  "14px"
+              }}
+            >
+              <strong>
+                Vi ste bili odabrani majstor
+              </strong>
+
+              <p
+                className="muted"
+                style={{
+                  margin:
+                    "5px 0 0"
+                }}
+              >
+                Naručitelj je označio ovaj posao kao završen.
+              </p>
+            </div>
+          )}
+
+        {mode === "not-selected" && (
+          <div
+            style={{
+              padding: "12px",
+              borderRadius: "12px",
+              background:
+                "#f7f8fa",
+              marginBottom: "14px"
             }}
           >
             <strong>
@@ -673,8 +905,7 @@ export default function DashboardPage() {
             <p
               className="muted"
               style={{
-                margin:
-                  "5px 0 0"
+                margin: "5px 0 0"
               }}
             >
               Naručitelj je za ovaj posao odabrao drugog majstora.
@@ -682,21 +913,13 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {!job.selected_pro_id &&
-          !completed && (
-            <p className="muted">
-              Naručitelj još nije odabrao majstora.
-            </p>
-          )}
-
         {interest.message && (
           <div
             style={{
               padding: "14px",
               background:
                 "#f7f8fa",
-              borderRadius:
-                "12px"
+              borderRadius: "12px"
             }}
           >
             <strong>
@@ -705,8 +928,7 @@ export default function DashboardPage() {
 
             <p
               style={{
-                margin:
-                  "6px 0 0"
+                margin: "6px 0 0"
               }}
             >
               {interest.message}
@@ -742,12 +964,12 @@ export default function DashboardPage() {
             </small>
           </div>
 
-          {!completed && (
+          {mode === "open" && (
             <Link
               href="/jobs"
               className="button small"
             >
-              Otvori posao
+              Otvori poslove
             </Link>
           )}
         </div>
@@ -891,117 +1113,78 @@ export default function DashboardPage() {
           </div>
 
           {message && (
-            <p
+            <div
               style={{
-                marginTop:
-                  "16px"
+                marginTop: "16px",
+                padding: "12px",
+                borderRadius: "12px",
+                background:
+                  "#f7f8fa"
               }}
             >
               {message}
-            </p>
+            </div>
           )}
         </div>
 
         {profile?.role ===
           "customer" && (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns:
-                "repeat(auto-fit, minmax(140px, 1fr))",
-              gap: "12px",
-              marginBottom:
-                "28px"
-            }}
-          >
-            <StatCard
-              value={
-                activeJobs.length
-              }
-              label="Aktivni poslovi"
-            />
-
-            <StatCard
-              value={
-                completedJobs.length
-              }
-              label="Završeni poslovi"
-            />
-
-            <StatCard
-              value={
-                myJobs.filter(
-                  job =>
-                    Boolean(
-                      job.selected_pro_id
-                    )
-                ).length
-              }
-              label="Odabrani majstori"
-            />
-          </div>
-        )}
-
-        {profile?.role ===
-          "pro" && (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns:
-                "repeat(auto-fit, minmax(140px, 1fr))",
-              gap: "12px",
-              marginBottom:
-                "28px"
-            }}
-          >
-            <StatCard
-              value={
-                activeInterests.length
-              }
-              label="Aktivni interesi"
-            />
-
-            <StatCard
-              value={
-                selectedActiveInterests
-              }
-              label="Odabrani poslovi"
-            />
-
-            <StatCard
-              value={
-                selectedCompletedInterests
-              }
-              label="Završeni poslovi"
-            />
-          </div>
-        )}
-
-        {profile?.role ===
-          "customer" && (
           <>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(auto-fit, minmax(140px, 1fr))",
+                gap: "12px",
+                marginBottom:
+                  "28px"
+              }}
+            >
+              <StatCard
+                value={
+                  openJobs.length
+                }
+                label="Otvoreni poslovi"
+              />
+
+              <StatCard
+                value={
+                  assignedJobs.length
+                }
+                label="Poslovi u tijeku"
+              />
+
+              <StatCard
+                value={
+                  completedJobs.length
+                }
+                label="Završeni poslovi"
+              />
+            </div>
+
             <section>
               <span className="eyebrow">
                 Za naručitelje
               </span>
 
               <h2>
-                Aktivni poslovi
+                Otvoreni poslovi
               </h2>
 
               <div className="jobList">
-                {activeJobs.map(
-                  job =>
-                    renderCustomerJob(
-                      job,
-                      false
-                    )
+                {openJobs.map(
+                  job => (
+                    <CustomerJobCard
+                      key={job.id}
+                      job={job}
+                    />
+                  )
                 )}
 
-                {!activeJobs.length && (
+                {!openJobs.length && (
                   <div className="card">
-                    <p>
-                      Trenutno nemate aktivnih poslova.
+                    <p className="muted">
+                      Trenutno nemate otvorenih poslova.
                     </p>
 
                     <Link
@@ -1010,6 +1193,39 @@ export default function DashboardPage() {
                     >
                       Objavi posao
                     </Link>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <section
+              style={{
+                marginTop: "30px"
+              }}
+            >
+              <span className="eyebrow">
+                Aktivni radovi
+              </span>
+
+              <h2>
+                Poslovi u tijeku
+              </h2>
+
+              <div className="jobList">
+                {assignedJobs.map(
+                  job => (
+                    <CustomerJobCard
+                      key={job.id}
+                      job={job}
+                    />
+                  )
+                )}
+
+                {!assignedJobs.length && (
+                  <div className="card">
+                    <p className="muted">
+                      Trenutno nemate poslova u tijeku.
+                    </p>
                   </div>
                 )}
               </div>
@@ -1030,11 +1246,12 @@ export default function DashboardPage() {
 
               <div className="jobList">
                 {completedJobs.map(
-                  job =>
-                    renderCustomerJob(
-                      job,
-                      true
-                    )
+                  job => (
+                    <CustomerJobCard
+                      key={job.id}
+                      job={job}
+                    />
+                  )
                 )}
 
                 {!completedJobs.length && (
@@ -1052,6 +1269,38 @@ export default function DashboardPage() {
         {profile?.role ===
           "pro" && (
           <>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(auto-fit, minmax(140px, 1fr))",
+                gap: "12px",
+                marginBottom:
+                  "28px"
+              }}
+            >
+              <StatCard
+                value={
+                  openInterests.length
+                }
+                label="Aktivni interesi"
+              />
+
+              <StatCard
+                value={
+                  assignedToMeInterests.length
+                }
+                label="Poslovi u tijeku"
+              />
+
+              <StatCard
+                value={
+                  completedForMeInterests.length
+                }
+                label="Završeni poslovi"
+              />
+            </div>
+
             <section>
               <span className="eyebrow">
                 Za meštre
@@ -1062,15 +1311,21 @@ export default function DashboardPage() {
               </h2>
 
               <div className="jobList">
-                {activeInterests.map(
-                  interest =>
-                    renderProInterest(
-                      interest,
-                      false
-                    )
+                {openInterests.map(
+                  interest => (
+                    <ProInterestCard
+                      key={
+                        interest.id
+                      }
+                      interest={
+                        interest
+                      }
+                      mode="open"
+                    />
+                  )
                 )}
 
-                {!activeInterests.length && (
+                {!openInterests.length && (
                   <div className="card">
                     <p>
                       Trenutno nemate aktivnih interesa.
@@ -1093,6 +1348,44 @@ export default function DashboardPage() {
               }}
             >
               <span className="eyebrow">
+                Aktivni radovi
+              </span>
+
+              <h2>
+                Poslovi u tijeku
+              </h2>
+
+              <div className="jobList">
+                {assignedToMeInterests.map(
+                  interest => (
+                    <ProInterestCard
+                      key={
+                        interest.id
+                      }
+                      interest={
+                        interest
+                      }
+                      mode="assigned"
+                    />
+                  )
+                )}
+
+                {!assignedToMeInterests.length && (
+                  <div className="card">
+                    <p className="muted">
+                      Trenutno nemate poslova u tijeku.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <section
+              style={{
+                marginTop: "30px"
+              }}
+            >
+              <span className="eyebrow">
                 Povijest
               </span>
 
@@ -1101,15 +1394,21 @@ export default function DashboardPage() {
               </h2>
 
               <div className="jobList">
-                {completedInterests.map(
-                  interest =>
-                    renderProInterest(
-                      interest,
-                      true
-                    )
+                {completedForMeInterests.map(
+                  interest => (
+                    <ProInterestCard
+                      key={
+                        interest.id
+                      }
+                      interest={
+                        interest
+                      }
+                      mode="completed"
+                    />
+                  )
                 )}
 
-                {!completedInterests.length && (
+                {!completedForMeInterests.length && (
                   <div className="card">
                     <p className="muted">
                       Još nemate završenih poslova.
@@ -1118,6 +1417,40 @@ export default function DashboardPage() {
                 )}
               </div>
             </section>
+
+            {notSelectedInterests.length >
+              0 && (
+              <section
+                style={{
+                  marginTop:
+                    "30px"
+                }}
+              >
+                <span className="eyebrow">
+                  Ostali interesi
+                </span>
+
+                <h2>
+                  Odabran je drugi majstor
+                </h2>
+
+                <div className="jobList">
+                  {notSelectedInterests.map(
+                    interest => (
+                      <ProInterestCard
+                        key={
+                          interest.id
+                        }
+                        interest={
+                          interest
+                        }
+                        mode="not-selected"
+                      />
+                    )
+                  )}
+                </div>
+              </section>
+            )}
 
             {unavailableInterests.length >
               0 && (
