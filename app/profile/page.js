@@ -261,8 +261,25 @@ export default function ProfilePage() {
   }
 
   function buildProPayload(
-    newPortfolioUrls = portfolioUrls
+    newPortfolioUrls = portfolioUrls,
+    coordinates = {}
   ) {
+    const latitude =
+      Object.prototype.hasOwnProperty.call(
+        coordinates,
+        "latitude"
+      )
+        ? coordinates.latitude
+        : proProfile?.latitude ?? null;
+
+    const longitude =
+      Object.prototype.hasOwnProperty.call(
+        coordinates,
+        "longitude"
+      )
+        ? coordinates.longitude
+        : proProfile?.longitude ?? null;
+
     return {
       user_id: user.id,
 
@@ -282,6 +299,9 @@ export default function ProfilePage() {
         zip.trim() ||
         null,
 
+      latitude,
+      longitude,
+
       bio:
         bio.trim() ||
         null,
@@ -299,11 +319,13 @@ export default function ProfilePage() {
   }
 
   async function saveProData(
-    newPortfolioUrls = portfolioUrls
+    newPortfolioUrls = portfolioUrls,
+    coordinates = {}
   ) {
     const proPayload =
       buildProPayload(
-        newPortfolioUrls
+        newPortfolioUrls,
+        coordinates
       );
 
     if (proProfile?.id) {
@@ -399,9 +421,7 @@ export default function ProfilePage() {
       "image/webp"
     ];
 
-    for (
-      const file of files
-    ) {
+    for (const file of files) {
       if (
         !allowedTypes.includes(
           file.type
@@ -432,9 +452,7 @@ export default function ProfilePage() {
     try {
       const newUrls = [];
 
-      for (
-        const file of files
-      ) {
+      for (const file of files) {
         const extension =
           file.name
             .split(".")
@@ -625,8 +643,7 @@ export default function ProfilePage() {
       setPortfolioUrls(
         nextUrls
       );
-
-      setMessage(
+            setMessage(
         "Fotografija je izbrisana."
       );
     } catch (err) {
@@ -641,6 +658,82 @@ export default function ProfilePage() {
         ""
       );
     }
+  }
+
+  async function geocodeMajstorAddress() {
+    const cleanAddress =
+      address.trim();
+
+    const cleanZip =
+      zip.trim();
+
+    const cleanCity =
+      city.trim();
+
+    if (
+      !cleanAddress &&
+      !cleanZip &&
+      !cleanCity
+    ) {
+      return {
+        latitude: null,
+        longitude: null
+      };
+    }
+
+    const response =
+      await fetch(
+        "/api/geocode",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+          body: JSON.stringify({
+            address: cleanAddress,
+            zip: cleanZip,
+            city: cleanCity,
+            country: "Croatia"
+          })
+        }
+      );
+
+    if (!response.ok) {
+      throw new Error(
+        "Lokacija adrese nije mogla biti određena."
+      );
+    }
+
+    const data =
+      await response.json();
+
+    const latitude =
+      Number(
+        data?.latitude ??
+          data?.lat
+      );
+
+    const longitude =
+      Number(
+        data?.longitude ??
+          data?.lon ??
+          data?.lng
+      );
+
+    if (
+      !Number.isFinite(latitude) ||
+      !Number.isFinite(longitude)
+    ) {
+      throw new Error(
+        "Adresa nije pronađena. Provjerite ulicu, broj, grad i poštanski broj."
+      );
+    }
+
+    return {
+      latitude,
+      longitude
+    };
   }
 
   async function saveProfile(e) {
@@ -687,8 +780,12 @@ export default function ProfilePage() {
       if (
         profile.role === "pro"
       ) {
+        const coordinates =
+          await geocodeMajstorAddress();
+
         await saveProData(
-          portfolioUrls
+          portfolioUrls,
+          coordinates
         );
       }
 
