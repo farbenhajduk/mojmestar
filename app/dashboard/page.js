@@ -272,7 +272,285 @@ export default function DashboardPage() {
       return "Aktivan";
     }
 
+    if (status === "completed") {
+      return "Završen";
+    }
+
     return status || "Nepoznato";
+  }
+
+  const activeJobs =
+    useMemo(
+      () =>
+        myJobs.filter(
+          job =>
+            job.status !== "completed"
+        ),
+      [myJobs]
+    );
+
+  const completedJobs =
+    useMemo(
+      () =>
+        myJobs.filter(
+          job =>
+            job.status === "completed"
+        ),
+      [myJobs]
+    );
+
+  const activeInterests =
+    useMemo(
+      () =>
+        myInterests.filter(
+          interest =>
+            interest.job &&
+            interest.job.status !==
+              "completed"
+        ),
+      [myInterests]
+    );
+
+  const completedInterests =
+    useMemo(
+      () =>
+        myInterests.filter(
+          interest =>
+            interest.job &&
+            interest.job.status ===
+              "completed"
+        ),
+      [myInterests]
+    );
+
+  const unavailableInterests =
+    useMemo(
+      () =>
+        myInterests.filter(
+          interest =>
+            !interest.job
+        ),
+      [myInterests]
+    );
+
+  function renderCustomerJob(
+    job,
+    completed = false
+  ) {
+    return (
+      <article
+        className="card"
+        key={job.id}
+        style={{
+          marginBottom: "16px"
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent:
+              "space-between",
+            alignItems: "flex-start",
+            gap: "10px",
+            flexWrap: "wrap"
+          }}
+        >
+          <span className="badge">
+            {job.category}
+          </span>
+
+          <span className="badge">
+            {completed
+              ? "Završen"
+              : "Aktivan"}
+          </span>
+        </div>
+
+        <h3>
+          {job.city}
+          {job.zip
+            ? ` · ${job.zip}`
+            : ""}
+        </h3>
+
+        <p>
+          {job.description}
+        </p>
+
+        {job.selected_pro_id && (
+          <p className="muted">
+            Majstor je odabran za ovaj posao.
+          </p>
+        )}
+
+        <div className="rowBetween">
+          <div>
+            <small>
+              Status:{" "}
+              <strong>
+                {statusLabel(
+                  job.status
+                )}
+              </strong>
+            </small>
+
+            <br />
+
+            <small>
+              Objavljeno:{" "}
+              {formatDate(
+                job.created_at
+              )}
+            </small>
+          </div>
+
+          {!completed && (
+            <Link
+              href="/jobs"
+              className="button small"
+            >
+              Otvori poslove
+            </Link>
+          )}
+        </div>
+      </article>
+    );
+  }
+
+  function renderProInterest(
+    interest,
+    completed = false
+  ) {
+    if (!interest.job) {
+      return null;
+    }
+
+    const job =
+      interest.job;
+
+    const isSelected =
+      job.selected_pro_id ===
+      user?.id;
+
+    return (
+      <article
+        className="card"
+        key={interest.id}
+        style={{
+          marginBottom: "16px"
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent:
+              "space-between",
+            alignItems: "flex-start",
+            gap: "10px",
+            flexWrap: "wrap"
+          }}
+        >
+          <span className="badge">
+            {job.category}
+          </span>
+
+          <span className="badge">
+            {completed
+              ? "Završen"
+              : "Aktivan"}
+          </span>
+        </div>
+
+        <h3>
+          {job.city}
+          {job.zip
+            ? ` · ${job.zip}`
+            : ""}
+        </h3>
+
+        <p>
+          {job.description}
+        </p>
+
+        {isSelected && (
+          <div
+            className="badge"
+            style={{
+              marginBottom: "12px"
+            }}
+          >
+            {completed
+              ? "Vi ste odabrani majstor"
+              : "Odabrani ste za posao"}
+          </div>
+        )}
+
+        {job.selected_pro_id &&
+          !isSelected && (
+            <p className="muted">
+              Naručitelj je odabrao drugog majstora.
+            </p>
+          )}
+
+        {interest.message && (
+          <div
+            style={{
+              padding: "14px",
+              background: "#f7f8fa",
+              borderRadius: "12px"
+            }}
+          >
+            <strong>
+              Moja poruka
+            </strong>
+
+            <p
+              style={{
+                margin: "6px 0 0"
+              }}
+            >
+              {interest.message}
+            </p>
+          </div>
+        )}
+
+        <div
+          className="rowBetween"
+          style={{
+            marginTop: "14px"
+          }}
+        >
+          <div>
+            <small>
+              Status posla:{" "}
+              <strong>
+                {statusLabel(
+                  job.status
+                )}
+              </strong>
+            </small>
+
+            <br />
+
+            <small>
+              Interes poslan:{" "}
+              {formatDate(
+                interest.created_at
+              )}
+            </small>
+          </div>
+
+          {!completed && (
+            <Link
+              href="/jobs"
+              className="button small"
+            >
+              Otvori poslove
+            </Link>
+          )}
+        </div>
+      </article>
+    );
   }
 
   if (!supabase) {
@@ -280,11 +558,12 @@ export default function DashboardPage() {
       <main className="section">
         <div className="container">
           <div className="card">
-            <h1>Pregled</h1>
+            <h1>
+              Pregled
+            </h1>
 
             <p>
-              Aplikacija nije ispravno
-              konfigurirana.
+              Aplikacija nije ispravno konfigurirana.
             </p>
           </div>
         </div>
@@ -301,7 +580,9 @@ export default function DashboardPage() {
               MOJMEŠTAR
             </span>
 
-            <h1>Moj pregled</h1>
+            <h1>
+              Moj pregled
+            </h1>
 
             <p className="muted">
               Učitavanje...
@@ -321,11 +602,12 @@ export default function DashboardPage() {
               MOJMEŠTAR
             </span>
 
-            <h1>Moj pregled</h1>
+            <h1>
+              Moj pregled
+            </h1>
 
             <p>
-              Za pregled svojih poslova
-              morate se prvo prijaviti.
+              Za pregled svojih poslova morate se prvo prijaviti.
             </p>
 
             <div className="actions">
@@ -362,7 +644,9 @@ export default function DashboardPage() {
             MOJMEŠTAR
           </span>
 
-          <h1>Moj pregled</h1>
+          <h1>
+            Moj pregled
+          </h1>
 
           <p className="muted">
             {user.email}
@@ -416,123 +700,179 @@ export default function DashboardPage() {
 
         {profile?.role ===
           "customer" && (
-          <section>
-            <span className="eyebrow">
-              Za naručitelje
-            </span>
+          <>
+            <section>
+              <span className="eyebrow">
+                Za naručitelje
+              </span>
 
-            <h2>Moji poslovi</h2>
+              <h2>
+                Aktivni poslovi
+              </h2>
 
-            <div className="jobList">
-              {myJobs.map(job => (
-                <article
-                  className="card"
-                  key={job.id}
-                >
-                  <span className="badge">
-                    {job.category}
-                  </span>
+              <div className="jobList">
+                {activeJobs.map(
+                  job =>
+                    renderCustomerJob(
+                      job,
+                      false
+                    )
+                )}
 
-                  <h3>
-                    {job.city}
-                    {job.zip
-                      ? ` · ${job.zip}`
-                      : ""}
-                  </h3>
-
-                  <p>
-                    {job.description}
-                  </p>
-
-                  <div className="rowBetween">
-                    <div>
-                      <small>
-                        Status:{" "}
-                        {statusLabel(
-                          job.status
-                        )}
-                      </small>
-
-                      <br />
-
-                      <small>
-                        Objavljeno:{" "}
-                        {formatDate(
-                          job.created_at
-                        )}
-                      </small>
-                    </div>
+                {!activeJobs.length && (
+                  <div className="card">
+                    <p>
+                      Trenutno nemate aktivnih poslova.
+                    </p>
 
                     <Link
                       href="/jobs"
-                      className="button small"
+                      className="button"
                     >
-                      Otvori poslove
+                      Objavi posao
                     </Link>
                   </div>
-                </article>
-              ))}
+                )}
+              </div>
+            </section>
+            <section
+              style={{
+                marginTop: "28px"
+              }}
+            >
+              <span className="eyebrow">
+                Povijest poslova
+              </span>
 
-              {!myJobs.length && (
-                <div className="card">
-                  <p>
-                    Još nemate objavljenih
-                    poslova.
-                  </p>
+              <h2>
+                Završeni poslovi
+              </h2>
 
-                  <Link
-                    href="/jobs"
-                    className="button"
-                  >
-                    Objavi posao
-                  </Link>
-                </div>
-              )}
-            </div>
-          </section>
+              <div className="jobList">
+                {completedJobs.map(
+                  job =>
+                    renderCustomerJob(
+                      job,
+                      true
+                    )
+                )}
+
+                {!completedJobs.length && (
+                  <div className="card">
+                    <p className="muted">
+                      Još nemate završenih poslova.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </section>
+          </>
         )}
 
         {profile?.role ===
           "pro" && (
-          <section>
-            <span className="eyebrow">
-              Za meštre
-            </span>
+          <>
+            <section>
+              <span className="eyebrow">
+                Za meštre
+              </span>
 
-            <h2>Moji interesi</h2>
+              <h2>
+                Aktivni interesi
+              </h2>
 
-            <div className="jobList">
-              {myInterests.map(
-                interest => (
-                  <article
-                    className="card"
-                    key={interest.id}
-                  >
-                    {interest.job ? (
-                      <>
-                        <span className="badge">
-                          {
-                            interest.job
-                              .category
-                          }
-                        </span>
+              <div className="jobList">
+                {activeInterests.map(
+                  interest =>
+                    renderProInterest(
+                      interest,
+                      false
+                    )
+                )}
 
+                {!activeInterests.length && (
+                  <div className="card">
+                    <p>
+                      Trenutno nemate aktivnih interesa.
+                    </p>
+
+                    <Link
+                      href="/jobs"
+                      className="button"
+                    >
+                      Pronađi posao
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <section
+              style={{
+                marginTop: "28px"
+              }}
+            >
+              <span className="eyebrow">
+                Povijest
+              </span>
+
+              <h2>
+                Završeni poslovi
+              </h2>
+
+              <div className="jobList">
+                {completedInterests.map(
+                  interest =>
+                    renderProInterest(
+                      interest,
+                      true
+                    )
+                )}
+
+                {!completedInterests.length && (
+                  <div className="card">
+                    <p className="muted">
+                      Još nemate završenih poslova u svojim interesima.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {unavailableInterests.length >
+              0 && (
+              <section
+                style={{
+                  marginTop: "28px"
+                }}
+              >
+                <span className="eyebrow">
+                  Nedostupno
+                </span>
+
+                <h2>
+                  Izbrisani ili nedostupni poslovi
+                </h2>
+
+                <div className="jobList">
+                  {unavailableInterests.map(
+                    interest => (
+                      <article
+                        className="card"
+                        key={
+                          interest.id
+                        }
+                        style={{
+                          marginBottom:
+                            "16px"
+                        }}
+                      >
                         <h3>
-                          {
-                            interest.job
-                              .city
-                          }
-                          {interest.job
-                            .zip
-                            ? ` · ${interest.job.zip}`
-                            : ""}
+                          Posao više nije dostupan
                         </h3>
 
-                        <p>
-                          {
-                            interest.job
-                              .description
-                          }
+                        <p className="muted">
+                          Posao za koji ste iskazali interes je izbrisan ili više nije dostupan.
                         </p>
 
                         {interest.message && (
@@ -543,6 +883,8 @@ export default function DashboardPage() {
                               background:
                                 "#f7f8fa",
                               borderRadius:
+                                "12px",
+                              marginTop:
                                 "12px"
                             }}
                           >
@@ -563,69 +905,26 @@ export default function DashboardPage() {
                           </div>
                         )}
 
-                        <div className="rowBetween">
-                          <div>
-                            <small>
-                              Status posla:{" "}
-                              {statusLabel(
-                                interest.job
-                                  .status
-                              )}
-                            </small>
-
-                            <br />
-
-                            <small>
-                              Interes poslan:{" "}
-                              {formatDate(
-                                interest.created_at
-                              )}
-                            </small>
-                          </div>
-
-                          <Link
-                            href="/jobs"
-                            className="button small"
-                          >
-                            Otvori poslove
-                          </Link>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <h3>
-                          Posao više nije
-                          dostupan
-                        </h3>
-
-                        <p className="muted">
-                          Posao za koji ste
-                          iskazali interes je
-                          zatvoren ili izbrisan.
+                        <p
+                          className="muted"
+                          style={{
+                            marginBottom: 0,
+                            marginTop:
+                              "14px"
+                          }}
+                        >
+                          Interes poslan:{" "}
+                          {formatDate(
+                            interest.created_at
+                          )}
                         </p>
-                      </>
-                    )}
-                  </article>
-                )
-              )}
-
-              {!myInterests.length && (
-                <div className="card">
-                  <p>
-                    Još niste iskazali interes
-                    za nijedan posao.
-                  </p>
-
-                  <Link
-                    href="/jobs"
-                    className="button"
-                  >
-                    Pronađi posao
-                  </Link>
+                      </article>
+                    )
+                  )}
                 </div>
-              )}
-            </div>
-          </section>
+              </section>
+            )}
+          </>
         )}
       </div>
     </main>
