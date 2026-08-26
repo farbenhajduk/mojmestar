@@ -116,7 +116,8 @@ export default function DashboardPage() {
       setProfile(currentProfile);
 
       if (
-        currentProfile?.role === "customer"
+        currentProfile?.role ===
+        "customer"
       ) {
         await loadCustomerJobs(
           authUser.id
@@ -142,7 +143,9 @@ export default function DashboardPage() {
     }
   }
 
-  async function loadCustomerJobs(userId) {
+  async function loadCustomerJobs(
+    userId
+  ) {
     const {
       data,
       error
@@ -168,7 +171,9 @@ export default function DashboardPage() {
     setMyInterests([]);
   }
 
-  async function loadProInterests(userId) {
+  async function loadProInterests(
+    userId
+  ) {
     const {
       data: interests,
       error: interestsError
@@ -283,63 +288,120 @@ export default function DashboardPage() {
     return status || "Nepoznato";
   }
 
-  const activeJobs =
-    useMemo(
-      () =>
-        myJobs.filter(
-          job =>
-            job.status !==
+  const activeJobs = useMemo(
+    () =>
+      myJobs.filter(
+        job =>
+          job.status !==
+          "completed"
+      ),
+    [myJobs]
+  );
+
+  const completedJobs = useMemo(
+    () =>
+      myJobs.filter(
+        job =>
+          job.status ===
+          "completed"
+      ),
+    [myJobs]
+  );
+
+  const activeInterests = useMemo(
+    () =>
+      myInterests.filter(
+        interest =>
+          interest.job &&
+          interest.job.status !==
             "completed"
-        ),
-      [myJobs]
-    );
+      ),
+    [myInterests]
+  );
 
-  const completedJobs =
-    useMemo(
-      () =>
-        myJobs.filter(
-          job =>
-            job.status ===
+  const completedInterests = useMemo(
+    () =>
+      myInterests.filter(
+        interest =>
+          interest.job &&
+          interest.job.status ===
             "completed"
-        ),
-      [myJobs]
-    );
+      ),
+    [myInterests]
+  );
 
-  const activeInterests =
+  const unavailableInterests = useMemo(
+    () =>
+      myInterests.filter(
+        interest =>
+          !interest.job
+      ),
+    [myInterests]
+  );
+
+  const selectedActiveInterests =
     useMemo(
       () =>
-        myInterests.filter(
+        activeInterests.filter(
           interest =>
-            interest.job &&
             interest.job
-              .status !==
-              "completed"
-        ),
-      [myInterests]
+              ?.selected_pro_id ===
+            user?.id
+        ).length,
+      [
+        activeInterests,
+        user?.id
+      ]
     );
 
-  const completedInterests =
+  const selectedCompletedInterests =
     useMemo(
       () =>
-        myInterests.filter(
+        completedInterests.filter(
           interest =>
-            interest.job &&
             interest.job
-              .status ===
-              "completed"
-        ),
-      [myInterests]
+              ?.selected_pro_id ===
+            user?.id
+        ).length,
+      [
+        completedInterests,
+        user?.id
+      ]
     );
 
-  const unavailableInterests =
-    useMemo(
-      () =>
-        myInterests.filter(
-          interest =>
-            !interest.job
-        ),
-      [myInterests]
+  function StatCard({
+    value,
+    label
+  }) {
+    return (
+      <div
+        className="card"
+        style={{
+          padding: "16px",
+          textAlign: "center"
+        }}
+      >
+        <div
+          style={{
+            fontSize: "30px",
+            fontWeight: 800,
+            lineHeight: 1
+          }}
+        >
+          {value}
+        </div>
+
+        <div
+          className="muted"
+          style={{
+            marginTop: "7px"
+          }}
+        >
+          {label}
+        </div>
+      </div>
     );
+  }
 
   function renderCustomerJob(
     job,
@@ -350,8 +412,7 @@ export default function DashboardPage() {
         className="card"
         key={job.id}
         style={{
-          marginBottom:
-            "16px"
+          marginBottom: "16px"
         }}
       >
         <div
@@ -362,8 +423,7 @@ export default function DashboardPage() {
             alignItems:
               "flex-start",
             gap: "10px",
-            flexWrap:
-              "wrap"
+            flexWrap: "wrap"
           }}
         >
           <span className="badge">
@@ -379,6 +439,7 @@ export default function DashboardPage() {
 
         <h3>
           {job.city}
+
           {job.zip
             ? ` · ${job.zip}`
             : ""}
@@ -388,16 +449,45 @@ export default function DashboardPage() {
           {job.description}
         </p>
 
-        {job.selected_pro_id && (
-          <p className="muted">
-            Majstor je odabran za ovaj posao.
-          </p>
+        {job.selected_pro_id ? (
+          <div
+            style={{
+              padding: "12px",
+              borderRadius: "12px",
+              background:
+                "#f7f8fa",
+              marginBottom:
+                "14px"
+            }}
+          >
+            <strong>
+              Majstor je odabran
+            </strong>
+
+            <p
+              className="muted"
+              style={{
+                margin:
+                  "5px 0 0"
+              }}
+            >
+              {completed
+                ? "Posao je završen s odabranim majstorom."
+                : "Za ovaj posao već ste odabrali majstora."}
+            </p>
+          </div>
+        ) : (
+          !completed && (
+            <p className="muted">
+              Majstor još nije odabran.
+            </p>
+          )
         )}
 
         <div
           className="rowBetween"
           style={{
-            gap: "14px",
+            gap: "12px",
             flexWrap: "wrap"
           }}
         >
@@ -425,8 +515,7 @@ export default function DashboardPage() {
             style={{
               display: "flex",
               gap: "8px",
-              flexWrap:
-                "wrap"
+              flexWrap: "wrap"
             }}
           >
             {!completed && (
@@ -434,27 +523,37 @@ export default function DashboardPage() {
                 href="/jobs"
                 className="button small"
               >
-                Otvori poslove
+                Otvori posao
               </Link>
             )}
 
-            {job.selected_pro_id && (
-              <Link
-                href={`/majstor/${job.selected_pro_id}`}
-                className="button secondary small"
-              >
-                Pogledaj majstora
-              </Link>
-            )}
-
-            {completed &&
+            {!completed &&
               job.selected_pro_id && (
                 <Link
                   href={`/majstor/${job.selected_pro_id}`}
-                  className="button small"
+                  className="button secondary small"
                 >
-                  Ocijeni majstora
+                  Profil majstora
                 </Link>
+              )}
+
+            {completed &&
+              job.selected_pro_id && (
+                <>
+                  <Link
+                    href={`/majstor/${job.selected_pro_id}`}
+                    className="button small"
+                  >
+                    Ocijeni majstora
+                  </Link>
+
+                  <Link
+                    href={`/majstor/${job.selected_pro_id}`}
+                    className="button secondary small"
+                  >
+                    Profil majstora
+                  </Link>
+                </>
               )}
           </div>
         </div>
@@ -488,8 +587,7 @@ export default function DashboardPage() {
         className="card"
         key={interest.id}
         style={{
-          marginBottom:
-            "16px"
+          marginBottom: "16px"
         }}
       >
         <div
@@ -500,8 +598,7 @@ export default function DashboardPage() {
             alignItems:
               "flex-start",
             gap: "10px",
-            flexWrap:
-              "wrap"
+            flexWrap: "wrap"
           }}
         >
           <span className="badge">
@@ -517,6 +614,7 @@ export default function DashboardPage() {
 
         <h3>
           {job.city}
+
           {job.zip
             ? ` · ${job.zip}`
             : ""}
@@ -528,29 +626,73 @@ export default function DashboardPage() {
 
         {isSelected && (
           <div
-            className="badge"
+            className="card"
             style={{
+              padding: "12px",
               marginBottom:
-                "12px"
+                "14px",
+              background:
+                "#f7f8fa"
             }}
           >
-            {completed
-              ? "Vi ste odabrani majstor"
-              : "Odabrani ste za posao"}
+            <strong>
+              {completed
+                ? "Vi ste odabrani majstor"
+                : "Odabrani ste za posao"}
+            </strong>
+
+            <p
+              className="muted"
+              style={{
+                margin:
+                  "5px 0 0"
+              }}
+            >
+              {completed
+                ? "Ovaj posao je završen i vi ste bili odabrani izvođač."
+                : "Naručitelj je odabrao vas za ovaj posao."}
+            </p>
           </div>
         )}
 
         {anotherSelected && (
-          <p className="muted">
-            Naručitelj je odabrao drugog majstora.
-          </p>
+          <div
+            style={{
+              padding: "12px",
+              borderRadius: "12px",
+              background:
+                "#f7f8fa",
+              marginBottom:
+                "14px"
+            }}
+          >
+            <strong>
+              Odabran je drugi majstor
+            </strong>
+
+            <p
+              className="muted"
+              style={{
+                margin:
+                  "5px 0 0"
+              }}
+            >
+              Naručitelj je za ovaj posao odabrao drugog majstora.
+            </p>
+          </div>
         )}
+
+        {!job.selected_pro_id &&
+          !completed && (
+            <p className="muted">
+              Naručitelj još nije odabrao majstora.
+            </p>
+          )}
 
         {interest.message && (
           <div
             style={{
-              padding:
-                "14px",
+              padding: "14px",
               background:
                 "#f7f8fa",
               borderRadius:
@@ -567,9 +709,7 @@ export default function DashboardPage() {
                   "6px 0 0"
               }}
             >
-              {
-                interest.message
-              }
+              {interest.message}
             </p>
           </div>
         )}
@@ -577,11 +717,9 @@ export default function DashboardPage() {
         <div
           className="rowBetween"
           style={{
-            marginTop:
-              "14px",
-            gap: "14px",
-            flexWrap:
-              "wrap"
+            marginTop: "14px",
+            gap: "12px",
+            flexWrap: "wrap"
           }}
         >
           <div>
@@ -609,7 +747,7 @@ export default function DashboardPage() {
               href="/jobs"
               className="button small"
             >
-              Otvori poslove
+              Otvori posao
             </Link>
           )}
         </div>
@@ -701,8 +839,7 @@ export default function DashboardPage() {
         <div
           className="card"
           style={{
-            marginBottom:
-              "24px"
+            marginBottom: "20px"
           }}
         >
           <span className="eyebrow">
@@ -739,7 +876,7 @@ export default function DashboardPage() {
               href="/jobs"
               className="button"
             >
-              Aktivni poslovi
+              Poslovi
             </Link>
 
             <button
@@ -767,33 +904,90 @@ export default function DashboardPage() {
 
         {profile?.role ===
           "customer" && (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(140px, 1fr))",
+              gap: "12px",
+              marginBottom:
+                "28px"
+            }}
+          >
+            <StatCard
+              value={
+                activeJobs.length
+              }
+              label="Aktivni poslovi"
+            />
+
+            <StatCard
+              value={
+                completedJobs.length
+              }
+              label="Završeni poslovi"
+            />
+
+            <StatCard
+              value={
+                myJobs.filter(
+                  job =>
+                    Boolean(
+                      job.selected_pro_id
+                    )
+                ).length
+              }
+              label="Odabrani majstori"
+            />
+          </div>
+        )}
+
+        {profile?.role ===
+          "pro" && (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(140px, 1fr))",
+              gap: "12px",
+              marginBottom:
+                "28px"
+            }}
+          >
+            <StatCard
+              value={
+                activeInterests.length
+              }
+              label="Aktivni interesi"
+            />
+
+            <StatCard
+              value={
+                selectedActiveInterests
+              }
+              label="Odabrani poslovi"
+            />
+
+            <StatCard
+              value={
+                selectedCompletedInterests
+              }
+              label="Završeni poslovi"
+            />
+          </div>
+        )}
+
+        {profile?.role ===
+          "customer" && (
           <>
             <section>
               <span className="eyebrow">
                 Za naručitelje
               </span>
 
-              <div
-                style={{
-                  display:
-                    "flex",
-                  alignItems:
-                    "center",
-                  gap: "10px",
-                  flexWrap:
-                    "wrap"
-                }}
-              >
-                <h2>
-                  Aktivni poslovi
-                </h2>
-
-                <span className="badge">
-                  {
-                    activeJobs.length
-                  }
-                </span>
-              </div>
+              <h2>
+                Aktivni poslovi
+              </h2>
 
               <div className="jobList">
                 {activeJobs.map(
@@ -823,35 +1017,16 @@ export default function DashboardPage() {
 
             <section
               style={{
-                marginTop:
-                  "32px"
+                marginTop: "30px"
               }}
             >
               <span className="eyebrow">
                 Povijest poslova
               </span>
 
-              <div
-                style={{
-                  display:
-                    "flex",
-                  alignItems:
-                    "center",
-                  gap: "10px",
-                  flexWrap:
-                    "wrap"
-                }}
-              >
-                <h2>
-                  Završeni poslovi
-                </h2>
-
-                <span className="badge">
-                  {
-                    completedJobs.length
-                  }
-                </span>
-              </div>
+              <h2>
+                Završeni poslovi
+              </h2>
 
               <div className="jobList">
                 {completedJobs.map(
@@ -882,27 +1057,9 @@ export default function DashboardPage() {
                 Za meštre
               </span>
 
-              <div
-                style={{
-                  display:
-                    "flex",
-                  alignItems:
-                    "center",
-                  gap: "10px",
-                  flexWrap:
-                    "wrap"
-                }}
-              >
-                <h2>
-                  Aktivni interesi
-                </h2>
-
-                <span className="badge">
-                  {
-                    activeInterests.length
-                  }
-                </span>
-              </div>
+              <h2>
+                Aktivni interesi
+              </h2>
 
               <div className="jobList">
                 {activeInterests.map(
@@ -932,35 +1089,16 @@ export default function DashboardPage() {
 
             <section
               style={{
-                marginTop:
-                  "32px"
+                marginTop: "30px"
               }}
             >
               <span className="eyebrow">
                 Povijest
               </span>
 
-              <div
-                style={{
-                  display:
-                    "flex",
-                  alignItems:
-                    "center",
-                  gap: "10px",
-                  flexWrap:
-                    "wrap"
-                }}
-              >
-                <h2>
-                  Završeni poslovi
-                </h2>
-
-                <span className="badge">
-                  {
-                    completedInterests.length
-                  }
-                </span>
-              </div>
+              <h2>
+                Završeni poslovi
+              </h2>
 
               <div className="jobList">
                 {completedInterests.map(
@@ -986,7 +1124,7 @@ export default function DashboardPage() {
               <section
                 style={{
                   marginTop:
-                    "32px"
+                    "30px"
                 }}
               >
                 <span className="eyebrow">
@@ -1018,43 +1156,7 @@ export default function DashboardPage() {
                           Posao za koji ste iskazali interes je izbrisan ili više nije dostupan.
                         </p>
 
-                        {interest.message && (
-                          <div
-                            style={{
-                              padding:
-                                "14px",
-                              background:
-                                "#f7f8fa",
-                              borderRadius:
-                                "12px"
-                            }}
-                          >
-                            <strong>
-                              Moja poruka
-                            </strong>
-
-                            <p
-                              style={{
-                                margin:
-                                  "6px 0 0"
-                              }}
-                            >
-                              {
-                                interest.message
-                              }
-                            </p>
-                          </div>
-                        )}
-
-                        <small
-                          className="muted"
-                          style={{
-                            display:
-                              "block",
-                            marginTop:
-                              "12px"
-                          }}
-                        >
+                        <small>
                           Interes poslan:{" "}
                           {formatDate(
                             interest.created_at
