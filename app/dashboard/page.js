@@ -7,6 +7,7 @@ import { createBrowserClient } from "@supabase/ssr";
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState("");
+  const [notificationLoading, setNotificationLoading] = useState("");
   const [message, setMessage] = useState("");
 
   const [user, setUser] = useState(null);
@@ -15,6 +16,7 @@ export default function DashboardPage() {
   const [myJobs, setMyJobs] = useState([]);
   const [myInterests, setMyInterests] = useState([]);
   const [proReviews, setProReviews] = useState([]);
+  const [notifications, setNotifications] = useState([]);
 
   const supabaseUrl =
     process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -84,6 +86,7 @@ export default function DashboardPage() {
       setMessage(
         "Aplikacija nije ispravno konfigurirana."
       );
+
       setLoading(false);
       return;
     }
@@ -110,34 +113,53 @@ export default function DashboardPage() {
         setMyJobs([]);
         setMyInterests([]);
         setProReviews([]);
+        setNotifications([]);
         return;
       }
 
       setUser(authUser);
 
       const currentProfile =
-        await ensureProfile(authUser);
+        await ensureProfile(
+          authUser
+        );
 
-      setProfile(currentProfile);
+      setProfile(
+        currentProfile
+      );
+
+      const commonTasks = [
+        loadNotifications(
+          authUser.id
+        )
+      ];
 
       if (
         currentProfile?.role ===
         "customer"
       ) {
-        await loadCustomerJobs(
-          authUser.id
-        );
+        await Promise.all([
+          ...commonTasks,
+
+          loadCustomerJobs(
+            authUser.id
+          )
+        ]);
 
         setProReviews([]);
       }
 
       if (
-        currentProfile?.role === "pro"
+        currentProfile?.role ===
+        "pro"
       ) {
         await Promise.all([
+          ...commonTasks,
+
           loadProInterests(
             authUser.id
           ),
+
           loadProReviews(
             authUser.id
           )
@@ -152,6 +174,173 @@ export default function DashboardPage() {
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadNotifications(
+    userId
+  ) {
+    const {
+      data,
+      error
+    } = await supabase
+      .from("notifications")
+      .select(
+        "id, user_id, type, title, message, href, entity_id, is_read, created_at"
+      )
+      .eq(
+        "user_id",
+        userId
+      )
+      .order(
+        "created_at",
+        {
+          ascending: false
+        }
+      )
+      .limit(20);
+
+    if (error) {
+      throw error;
+    }
+
+    setNotifications(
+      data || []
+    );
+  }
+
+  async function markNotificationRead(
+    notificationId
+  ) {
+    if (
+      !supabase ||
+      !notificationId
+    ) {
+      return;
+    }
+
+    setNotificationLoading(
+      notificationId
+    );
+
+    try {
+      const {
+        error
+      } = await supabase
+        .from("notifications")
+        .update({
+          is_read: true
+        })
+        .eq(
+          "id",
+          notificationId
+        );
+
+      if (error) {
+        throw error;
+      }
+
+      setNotifications(
+        current =>
+          current.map(
+            notification =>
+              notification.id ===
+              notificationId
+                ? {
+                    ...notification,
+                    is_read: true
+                  }
+                : notification
+          )
+      );
+    } catch (err) {
+      console.error(err);
+
+      setMessage(
+        err?.message ||
+          "Obavijest nije moguće označiti kao pročitanu."
+      );
+    } finally {
+      setNotificationLoading(
+        ""
+      );
+    }
+  }
+
+  async function markAllNotificationsRead() {
+    if (
+      !supabase ||
+      !user?.id
+    ) {
+      return;
+    }
+
+    setNotificationLoading(
+      "all"
+    );
+
+    try {
+      const {
+        error
+      } = await supabase
+        .from("notifications")
+        .update({
+          is_read: true
+        })
+        .eq(
+          "user_id",
+          user.id
+        )
+        .eq(
+          "is_read",
+          false
+        );
+
+      if (error) {
+        throw error;
+      }
+
+      setNotifications(
+        current =>
+          current.map(
+            notification => ({
+              ...notification,
+              is_read: true
+            })
+          )
+      );
+    } catch (err) {
+      console.error(err);
+
+      setMessage(
+        err?.message ||
+          "Obavijesti nije moguće označiti kao pročitane."
+      );
+    } finally {
+      setNotificationLoading(
+        ""
+      );
+    }
+  }
+
+  async function openNotification(
+    notification
+  ) {
+    if (!notification) {
+      return;
+    }
+
+    if (!notification.is_read) {
+      await markNotificationRead(
+        notification.id
+      );
+    }
+
+    if (
+      notification.href
+    ) {
+      window.location.href =
+        notification.href;
     }
   }
 
@@ -179,7 +368,10 @@ export default function DashboardPage() {
       throw error;
     }
 
-    setMyJobs(data || []);
+    setMyJobs(
+      data || []
+    );
+
     setMyInterests([]);
   }
 
@@ -210,7 +402,9 @@ export default function DashboardPage() {
     const interestRows =
       interests || [];
 
-    if (!interestRows.length) {
+    if (
+      !interestRows.length
+    ) {
       setMyInterests([]);
       setMyJobs([]);
       return;
@@ -256,6 +450,7 @@ export default function DashboardPage() {
       interestRows.map(
         interest => ({
           ...interest,
+
           job:
             jobsById[
               interest.job_id
@@ -263,7 +458,10 @@ export default function DashboardPage() {
         })
       );
 
-    setMyInterests(combined);
+    setMyInterests(
+      combined
+    );
+
     setMyJobs([]);
   }
 
@@ -298,7 +496,9 @@ export default function DashboardPage() {
     );
   }
 
-  async function completeJob(jobId) {
+  async function completeJob(
+    jobId
+  ) {
     if (
       !supabase ||
       !jobId ||
@@ -316,7 +516,10 @@ export default function DashboardPage() {
       return;
     }
 
-    setActionLoading(jobId);
+    setActionLoading(
+      jobId
+    );
+
     setMessage("");
 
     try {
@@ -325,7 +528,8 @@ export default function DashboardPage() {
       } = await supabase.rpc(
         "close_job",
         {
-          p_job_id: jobId
+          p_job_id:
+            jobId
         }
       );
 
@@ -346,11 +550,15 @@ export default function DashboardPage() {
           "Posao nije moguće završiti."
       );
     } finally {
-      setActionLoading("");
+      setActionLoading(
+        ""
+      );
     }
   }
 
-  function formatDate(value) {
+  function formatDate(
+    value
+  ) {
     if (!value) {
       return "";
     }
@@ -371,39 +579,145 @@ export default function DashboardPage() {
     }
   }
 
-  function statusLabel(status) {
-    if (status === "open") {
+  function formatDateTime(
+    value
+  ) {
+    if (!value) {
+      return "";
+    }
+
+    try {
+      return new Intl.DateTimeFormat(
+        "hr-HR",
+        {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit"
+        }
+      ).format(
+        new Date(value)
+      );
+    } catch {
+      return "";
+    }
+  }
+
+  function statusLabel(
+    status
+  ) {
+    if (
+      status === "open"
+    ) {
       return "Aktivan";
     }
 
-    if (status === "assigned") {
+    if (
+      status === "assigned"
+    ) {
       return "U tijeku";
     }
 
-    if (status === "completed") {
+    if (
+      status === "completed"
+    ) {
       return "Završen";
     }
 
-    return status || "Nepoznato";
+    return (
+      status ||
+      "Nepoznato"
+    );
   }
 
-  function statusBadge(status) {
-    if (status === "open") {
+  function statusBadge(
+    status
+  ) {
+    if (
+      status === "open"
+    ) {
       return "Aktivan";
     }
 
-    if (status === "assigned") {
+    if (
+      status === "assigned"
+    ) {
       return "Posao u tijeku";
     }
 
-    if (status === "completed") {
+    if (
+      status === "completed"
+    ) {
       return "Završen";
     }
 
     return "Nepoznato";
   }
 
-  function renderStars(value) {
+  function notificationIcon(
+    type
+  ) {
+    if (
+      type === "new_interest"
+    ) {
+      return "👷";
+    }
+
+    if (
+      type === "job_assigned"
+    ) {
+      return "✅";
+    }
+
+    if (
+      type === "job_completed"
+    ) {
+      return "🏁";
+    }
+
+    if (
+      type === "new_review"
+    ) {
+      return "★";
+    }
+
+    return "●";
+  }
+
+  function notificationActionLabel(
+    type
+  ) {
+    if (
+      type === "new_interest"
+    ) {
+      return "Pogledaj majstore";
+    }
+
+    if (
+      type === "job_assigned"
+    ) {
+      return "Pogledaj posao";
+    }
+
+    if (
+      type === "job_completed"
+    ) {
+      return "Otvori pregled";
+    }
+
+    if (
+      type === "new_review"
+    ) {
+      return "Pogledaj ocjenu";
+    }
+
+    return "Otvori";
+  }
+
+  function renderStars(
+    value
+  ) {
     const rounded =
       Math.round(
         Number(value) || 0
@@ -422,47 +736,55 @@ export default function DashboardPage() {
    * NARUČITELJ
    */
 
-  const openJobs = useMemo(
-    () =>
-      myJobs.filter(
-        job =>
-          job.status === "open"
-      ),
-    [myJobs]
-  );
+  const openJobs =
+    useMemo(
+      () =>
+        myJobs.filter(
+          job =>
+            job.status ===
+            "open"
+        ),
+      [myJobs]
+    );
 
-  const assignedJobs = useMemo(
-    () =>
-      myJobs.filter(
-        job =>
-          job.status === "assigned"
-      ),
-    [myJobs]
-  );
+  const assignedJobs =
+    useMemo(
+      () =>
+        myJobs.filter(
+          job =>
+            job.status ===
+            "assigned"
+        ),
+      [myJobs]
+    );
 
-  const completedJobs = useMemo(
-    () =>
-      myJobs.filter(
-        job =>
-          job.status === "completed"
-      ),
-    [myJobs]
-  );
+  const completedJobs =
+    useMemo(
+      () =>
+        myJobs.filter(
+          job =>
+            job.status ===
+            "completed"
+        ),
+      [myJobs]
+    );
 
   /*
    * MAJSTOR
    */
 
-  const openInterests = useMemo(
-    () =>
-      myInterests.filter(
-        interest =>
-          interest.job &&
-          interest.job.status ===
-            "open"
-      ),
-    [myInterests]
-  );
+  const openInterests =
+    useMemo(
+      () =>
+        myInterests.filter(
+          interest =>
+            interest.job &&
+            interest.job
+              .status ===
+              "open"
+        ),
+      [myInterests]
+    );
 
   const assignedToMeInterests =
     useMemo(
@@ -470,7 +792,8 @@ export default function DashboardPage() {
         myInterests.filter(
           interest =>
             interest.job &&
-            interest.job.status ===
+            interest.job
+              .status ===
               "assigned" &&
             interest.job
               .selected_pro_id ===
@@ -488,7 +811,8 @@ export default function DashboardPage() {
         myInterests.filter(
           interest =>
             interest.job &&
-            interest.job.status ===
+            interest.job
+              .status ===
               "completed" &&
             interest.job
               .selected_pro_id ===
@@ -512,9 +836,11 @@ export default function DashboardPage() {
               .selected_pro_id !==
               user?.id &&
             (
-              interest.job.status ===
+              interest.job
+                .status ===
                 "assigned" ||
-              interest.job.status ===
+              interest.job
+                .status ===
                 "completed"
             )
         ),
@@ -535,26 +861,48 @@ export default function DashboardPage() {
     );
 
   const averageRating =
-    useMemo(() => {
-      if (!proReviews.length) {
-        return 0;
-      }
+    useMemo(
+      () => {
+        if (
+          !proReviews.length
+        ) {
+          return 0;
+        }
 
-      const total =
-        proReviews.reduce(
-          (sum, review) =>
-            sum +
-            Number(
-              review.rating || 0
-            ),
-          0
+        const total =
+          proReviews.reduce(
+            (
+              sum,
+              review
+            ) =>
+              sum +
+              Number(
+                review.rating ||
+                  0
+              ),
+            0
+          );
+
+        return (
+          total /
+          proReviews.length
         );
+      },
+      [proReviews]
+    );
 
-      return (
-        total /
-        proReviews.length
-      );
-    }, [proReviews]);
+  const unreadNotifications =
+    useMemo(
+      () =>
+        notifications.filter(
+          notification =>
+            !notification.is_read
+        ),
+      [notifications]
+    );
+
+  const unreadCount =
+    unreadNotifications.length;
 
   function StatCard({
     value,
@@ -590,6 +938,277 @@ export default function DashboardPage() {
     );
   }
 
+  function NotificationsSection() {
+    return (
+      <section
+        style={{
+          marginBottom:
+            "30px"
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent:
+              "space-between",
+            alignItems:
+              "flex-end",
+            gap: "12px",
+            flexWrap: "wrap",
+            marginBottom:
+              "14px"
+          }}
+        >
+          <div>
+            <span className="eyebrow">
+              Obavijesti
+            </span>
+
+            <h2
+              style={{
+                marginBottom: 0
+              }}
+            >
+              Novosti za vas
+            </h2>
+          </div>
+
+          {unreadCount >
+            0 && (
+            <button
+              type="button"
+              className="button secondary small"
+              disabled={
+                notificationLoading ===
+                "all"
+              }
+              onClick={
+                markAllNotificationsRead
+              }
+            >
+              {notificationLoading ===
+              "all"
+                ? "Spremam..."
+                : "Označi sve kao pročitano"}
+            </button>
+          )}
+        </div>
+
+        {unreadCount >
+          0 && (
+          <div
+            className="card"
+            style={{
+              padding: "14px",
+              marginBottom:
+                "12px"
+            }}
+          >
+            <strong>
+              {unreadCount}{" "}
+              {unreadCount ===
+              1
+                ? "nova obavijest"
+                : "novih obavijesti"}
+            </strong>
+
+            <p
+              className="muted"
+              style={{
+                margin:
+                  "5px 0 0"
+              }}
+            >
+              Ovdje se pojavljuju promjene vezane uz vaše poslove, interese i ocjene.
+            </p>
+          </div>
+        )}
+
+        {!notifications.length ? (
+          <div className="card">
+            <p
+              className="muted"
+              style={{
+                marginBottom: 0
+              }}
+            >
+              Trenutno nemate novih obavijesti.
+            </p>
+          </div>
+        ) : (
+          <div
+            style={{
+              display: "grid",
+              gap: "10px"
+            }}
+          >
+            {notifications
+              .slice(0, 10)
+              .map(
+                notification => (
+                  <article
+                    key={
+                      notification.id
+                    }
+                    className="card"
+                    style={{
+                      padding:
+                        "14px",
+
+                      border:
+                        notification.is_read
+                          ? "1px solid var(--border)"
+                          : "2px solid currentColor"
+                    }}
+                  >
+                    <div
+                      style={{
+                        display:
+                          "flex",
+                        gap: "12px",
+                        alignItems:
+                          "flex-start"
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: "40px",
+                          height: "40px",
+                          flexShrink: 0,
+                          borderRadius:
+                            "12px",
+                          background:
+                            "#f2f4f7",
+                          display:
+                            "flex",
+                          alignItems:
+                            "center",
+                          justifyContent:
+                            "center",
+                          fontSize:
+                            "20px"
+                        }}
+                      >
+                        {notificationIcon(
+                          notification.type
+                        )}
+                      </div>
+
+                      <div
+                        style={{
+                          flex: 1,
+                          minWidth: 0
+                        }}
+                      >
+                        <div
+                          style={{
+                            display:
+                              "flex",
+                            justifyContent:
+                              "space-between",
+                            gap:
+                              "10px",
+                            flexWrap:
+                              "wrap"
+                          }}
+                        >
+                          <strong>
+                            {
+                              notification.title
+                            }
+                          </strong>
+
+                          {!notification.is_read && (
+                            <span className="badge">
+                              Novo
+                            </span>
+                          )}
+                        </div>
+
+                        {notification.message && (
+                          <p
+                            className="muted"
+                            style={{
+                              margin:
+                                "6px 0"
+                            }}
+                          >
+                            {
+                              notification.message
+                            }
+                          </p>
+                        )}
+
+                        <small className="muted">
+                          {formatDateTime(
+                            notification.created_at
+                          )}
+                        </small>
+
+                        <div
+                          style={{
+                            display:
+                              "flex",
+                            gap:
+                              "8px",
+                            flexWrap:
+                              "wrap",
+                            marginTop:
+                              "12px"
+                          }}
+                        >
+                          {notification.href && (
+                            <button
+                              type="button"
+                              className="button small"
+                              disabled={
+                                notificationLoading ===
+                                notification.id
+                              }
+                              onClick={() =>
+                                openNotification(
+                                  notification
+                                )
+                              }
+                            >
+                              {notificationActionLabel(
+                                notification.type
+                              )}
+                            </button>
+                          )}
+
+                          {!notification.is_read && (
+                            <button
+                              type="button"
+                              className="button secondary small"
+                              disabled={
+                                notificationLoading ===
+                                notification.id
+                              }
+                              onClick={() =>
+                                markNotificationRead(
+                                  notification.id
+                                )
+                              }
+                            >
+                              {notificationLoading ===
+                              notification.id
+                                ? "Spremam..."
+                                : "Pročitano"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                )
+              )}
+          </div>
+        )}
+      </section>
+    );
+  }
+
   function CustomerJobCard({
     job
   }) {
@@ -608,7 +1227,8 @@ export default function DashboardPage() {
       <article
         className="card"
         style={{
-          marginBottom: "16px"
+          marginBottom:
+            "16px"
         }}
       >
         <div
@@ -649,10 +1269,12 @@ export default function DashboardPage() {
           <div
             style={{
               padding: "12px",
-              borderRadius: "12px",
+              borderRadius:
+                "12px",
               background:
                 "#f7f8fa",
-              marginBottom: "14px"
+              marginBottom:
+                "14px"
             }}
           >
             <strong>
@@ -662,7 +1284,8 @@ export default function DashboardPage() {
             <p
               className="muted"
               style={{
-                margin: "5px 0 0"
+                margin:
+                  "5px 0 0"
               }}
             >
               Majstori još mogu iskazati interes za ovaj posao.
@@ -806,7 +1429,7 @@ export default function DashboardPage() {
               job.selected_pro_id && (
                 <>
                   <Link
-                    href={`/majstor/${job.selected_pro_id}`}
+                    href={`/majstor/${job.selected_pro_id}#ocijeni`}
                     className="button small"
                   >
                     Ocijeni majstora
@@ -845,7 +1468,8 @@ export default function DashboardPage() {
       <article
         className="card"
         style={{
-          marginBottom: "16px"
+          marginBottom:
+            "16px"
         }}
       >
         <div
@@ -886,10 +1510,12 @@ export default function DashboardPage() {
           <div
             style={{
               padding: "12px",
-              borderRadius: "12px",
+              borderRadius:
+                "12px",
               background:
                 "#f7f8fa",
-              marginBottom: "14px"
+              marginBottom:
+                "14px"
             }}
           >
             <strong>
@@ -899,7 +1525,8 @@ export default function DashboardPage() {
             <p
               className="muted"
               style={{
-                margin: "5px 0 0"
+                margin:
+                  "5px 0 0"
               }}
             >
               Naručitelj još nije odabrao majstora.
@@ -970,10 +1597,12 @@ export default function DashboardPage() {
           <div
             style={{
               padding: "12px",
-              borderRadius: "12px",
+              borderRadius:
+                "12px",
               background:
                 "#f7f8fa",
-              marginBottom: "14px"
+              marginBottom:
+                "14px"
             }}
           >
             <strong>
@@ -983,7 +1612,8 @@ export default function DashboardPage() {
             <p
               className="muted"
               style={{
-                margin: "5px 0 0"
+                margin:
+                  "5px 0 0"
               }}
             >
               Naručitelj je za ovaj posao odabrao drugog majstora.
@@ -1160,7 +1790,8 @@ export default function DashboardPage() {
         <div
           className="card"
           style={{
-            marginBottom: "20px"
+            marginBottom:
+              "20px"
           }}
         >
           <span className="eyebrow">
@@ -1184,6 +1815,31 @@ export default function DashboardPage() {
                 : "Naručitelj"}
             </strong>
           </p>
+
+          {unreadCount >
+            0 && (
+            <div
+              style={{
+                padding:
+                  "12px",
+                borderRadius:
+                  "12px",
+                background:
+                  "#f7f8fa",
+                marginBottom:
+                  "14px"
+              }}
+            >
+              <strong>
+                🔔 Imate{" "}
+                {unreadCount}{" "}
+                {unreadCount ===
+                1
+                  ? "novu obavijest"
+                  : "novih obavijesti"}
+              </strong>
+            </div>
+          )}
 
           <div className="actions">
             <Link
@@ -1225,8 +1881,10 @@ export default function DashboardPage() {
           {message && (
             <div
               style={{
-                marginTop: "16px",
-                padding: "12px",
+                marginTop:
+                  "16px",
+                padding:
+                  "12px",
                 borderRadius:
                   "12px",
                 background:
@@ -1237,6 +1895,8 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+
+        <NotificationsSection />
 
         {profile?.role ===
           "customer" && (
@@ -1271,6 +1931,13 @@ export default function DashboardPage() {
                 }
                 label="Završeni poslovi"
               />
+
+              <StatCard
+                value={
+                  unreadCount
+                }
+                label="Nove obavijesti"
+              />
             </div>
 
             <section>
@@ -1286,8 +1953,12 @@ export default function DashboardPage() {
                 {openJobs.map(
                   job => (
                     <CustomerJobCard
-                      key={job.id}
-                      job={job}
+                      key={
+                        job.id
+                      }
+                      job={
+                        job
+                      }
                     />
                   )
                 )}
@@ -1311,7 +1982,8 @@ export default function DashboardPage() {
 
             <section
               style={{
-                marginTop: "30px"
+                marginTop:
+                  "30px"
               }}
             >
               <span className="eyebrow">
@@ -1326,8 +1998,12 @@ export default function DashboardPage() {
                 {assignedJobs.map(
                   job => (
                     <CustomerJobCard
-                      key={job.id}
-                      job={job}
+                      key={
+                        job.id
+                      }
+                      job={
+                        job
+                      }
                     />
                   )
                 )}
@@ -1344,7 +2020,8 @@ export default function DashboardPage() {
 
             <section
               style={{
-                marginTop: "30px"
+                marginTop:
+                  "30px"
               }}
             >
               <span className="eyebrow">
@@ -1359,8 +2036,12 @@ export default function DashboardPage() {
                 {completedJobs.map(
                   job => (
                     <CustomerJobCard
-                      key={job.id}
-                      job={job}
+                      key={
+                        job.id
+                      }
+                      job={
+                        job
+                      }
                     />
                   )
                 )}
@@ -1428,6 +2109,13 @@ export default function DashboardPage() {
                 }
                 label="Recenzije"
               />
+
+              <StatCard
+                value={
+                  unreadCount
+                }
+                label="Nove obavijesti"
+              />
             </div>
 
             <section
@@ -1451,7 +2139,8 @@ export default function DashboardPage() {
                       style={{
                         fontSize:
                           "30px",
-                        lineHeight: 1,
+                        lineHeight:
+                          1,
                         marginBottom:
                           "10px"
                       }}
@@ -1476,11 +2165,7 @@ export default function DashboardPage() {
                     </p>
 
                     <p className="muted">
-                      {proReviews.length}{" "}
-                      {proReviews.length ===
-                      1
-                        ? "recenzija"
-                        : "recenzija"}
+                      {proReviews.length} recenzija
                     </p>
 
                     <Link
@@ -1554,7 +2239,8 @@ export default function DashboardPage() {
 
             <section
               style={{
-                marginTop: "30px"
+                marginTop:
+                  "30px"
               }}
             >
               <span className="eyebrow">
@@ -1592,7 +2278,8 @@ export default function DashboardPage() {
 
             <section
               style={{
-                marginTop: "30px"
+                marginTop:
+                  "30px"
               }}
             >
               <span className="eyebrow">
@@ -1646,12 +2333,16 @@ export default function DashboardPage() {
 
                 <div
                   style={{
-                    display: "grid",
+                    display:
+                      "grid",
                     gap: "12px"
                   }}
                 >
                   {proReviews
-                    .slice(0, 5)
+                    .slice(
+                      0,
+                      5
+                    )
                     .map(
                       review => (
                         <article
