@@ -105,7 +105,6 @@ export default function DashboardPage() {
         setProfile(null);
         setMyJobs([]);
         setMyInterests([]);
-        setLoading(false);
         return;
       }
 
@@ -117,7 +116,8 @@ export default function DashboardPage() {
       setProfile(currentProfile);
 
       if (
-        currentProfile?.role === "customer"
+        currentProfile?.role ===
+        "customer"
       ) {
         await loadCustomerJobs(
           authUser.id
@@ -143,7 +143,9 @@ export default function DashboardPage() {
     }
   }
 
-  async function loadCustomerJobs(userId) {
+  async function loadCustomerJobs(
+    userId
+  ) {
     const {
       data,
       error
@@ -169,7 +171,9 @@ export default function DashboardPage() {
     setMyInterests([]);
   }
 
-  async function loadProInterests(userId) {
+  async function loadProInterests(
+    userId
+  ) {
     const {
       data: interests,
       error: interestsError
@@ -203,7 +207,10 @@ export default function DashboardPage() {
     const jobIds = [
       ...new Set(
         interestRows
-          .map(item => item.job_id)
+          .map(
+            item =>
+              item.job_id
+          )
           .filter(Boolean)
       )
     ];
@@ -225,10 +232,12 @@ export default function DashboardPage() {
 
     const jobsById =
       Object.fromEntries(
-        (jobs || []).map(job => [
-          job.id,
-          job
-        ])
+        (jobs || []).map(
+          job => [
+            job.id,
+            job
+          ]
+        )
       );
 
     const combined =
@@ -272,11 +281,16 @@ export default function DashboardPage() {
       return "Aktivan";
     }
 
-    if (status === "completed") {
+    if (
+      status === "completed"
+    ) {
       return "Završen";
     }
 
-    return status || "Nepoznato";
+    return (
+      status ||
+      "Nepoznato"
+    );
   }
 
   const activeJobs =
@@ -284,7 +298,8 @@ export default function DashboardPage() {
       () =>
         myJobs.filter(
           job =>
-            job.status !== "completed"
+            job.status !==
+            "completed"
         ),
       [myJobs]
     );
@@ -294,7 +309,8 @@ export default function DashboardPage() {
       () =>
         myJobs.filter(
           job =>
-            job.status === "completed"
+            job.status ===
+            "completed"
         ),
       [myJobs]
     );
@@ -305,7 +321,8 @@ export default function DashboardPage() {
         myInterests.filter(
           interest =>
             interest.job &&
-            interest.job.status !==
+            interest.job
+              .status !==
               "completed"
         ),
       [myInterests]
@@ -317,7 +334,8 @@ export default function DashboardPage() {
         myInterests.filter(
           interest =>
             interest.job &&
-            interest.job.status ===
+            interest.job
+              .status ===
               "completed"
         ),
       [myInterests]
@@ -342,7 +360,8 @@ export default function DashboardPage() {
         className="card"
         key={job.id}
         style={{
-          marginBottom: "16px"
+          marginBottom:
+            "16px"
         }}
       >
         <div
@@ -350,7 +369,8 @@ export default function DashboardPage() {
             display: "flex",
             justifyContent:
               "space-between",
-            alignItems: "flex-start",
+            alignItems:
+              "flex-start",
             gap: "10px",
             flexWrap: "wrap"
           }}
@@ -368,6 +388,7 @@ export default function DashboardPage() {
 
         <h3>
           {job.city}
+
           {job.zip
             ? ` · ${job.zip}`
             : ""}
@@ -383,7 +404,13 @@ export default function DashboardPage() {
           </p>
         )}
 
-        <div className="rowBetween">
+        <div
+          className="rowBetween"
+          style={{
+            gap: "12px",
+            flexWrap: "wrap"
+          }}
+        >
           <div>
             <small>
               Status:{" "}
@@ -404,14 +431,32 @@ export default function DashboardPage() {
             </small>
           </div>
 
-          {!completed && (
-            <Link
-              href="/jobs"
-              className="button small"
-            >
-              Otvori poslove
-            </Link>
-          )}
+          <div
+            style={{
+              display: "flex",
+              gap: "8px",
+              flexWrap: "wrap"
+            }}
+          >
+            {!completed && (
+              <Link
+                href="/jobs"
+                className="button small"
+              >
+                Otvori poslove
+              </Link>
+            )}
+
+            {completed &&
+              job.selected_pro_id && (
+                <Link
+                  href={`/majstor/${job.selected_pro_id}`}
+                  className="button small"
+                >
+                  Ocijeni majstora
+                </Link>
+              )}
+          </div>
         </div>
       </article>
     );
@@ -437,7 +482,8 @@ export default function DashboardPage() {
         className="card"
         key={interest.id}
         style={{
-          marginBottom: "16px"
+          marginBottom:
+            "16px"
         }}
       >
         <div
@@ -445,7 +491,8 @@ export default function DashboardPage() {
             display: "flex",
             justifyContent:
               "space-between",
-            alignItems: "flex-start",
+            alignItems:
+              "flex-start",
             gap: "10px",
             flexWrap: "wrap"
           }}
@@ -463,6 +510,7 @@ export default function DashboardPage() {
 
         <h3>
           {job.city}
+
           {job.zip
             ? ` · ${job.zip}`
             : ""}
@@ -476,7 +524,8 @@ export default function DashboardPage() {
           <div
             className="badge"
             style={{
-              marginBottom: "12px"
+              marginBottom:
+                "12px"
             }}
           >
             {completed
@@ -495,9 +544,12 @@ export default function DashboardPage() {
         {interest.message && (
           <div
             style={{
-              padding: "14px",
-              background: "#f7f8fa",
-              borderRadius: "12px"
+              padding:
+                "14px",
+              background:
+                "#f7f8fa",
+              borderRadius:
+                "12px"
             }}
           >
             <strong>
@@ -506,10 +558,13 @@ export default function DashboardPage() {
 
             <p
               style={{
-                margin: "6px 0 0"
+                margin:
+                  "6px 0 0"
               }}
             >
-              {interest.message}
+              {
+                interest.message
+              }
             </p>
           </div>
         )}
@@ -517,7 +572,8 @@ export default function DashboardPage() {
         <div
           className="rowBetween"
           style={{
-            marginTop: "14px"
+            marginTop:
+              "14px"
           }}
         >
           <div>
@@ -637,7 +693,8 @@ export default function DashboardPage() {
         <div
           className="card"
           style={{
-            marginBottom: "24px"
+            marginBottom:
+              "24px"
           }}
         >
           <span className="eyebrow">
@@ -655,7 +712,8 @@ export default function DashboardPage() {
           <p>
             Vrsta računa:{" "}
             <strong>
-              {profile?.role === "pro"
+              {profile?.role ===
+              "pro"
                 ? "Majstor"
                 : "Naručitelj"}
             </strong>
@@ -690,7 +748,8 @@ export default function DashboardPage() {
           {message && (
             <p
               style={{
-                marginTop: "16px"
+                marginTop:
+                  "16px"
               }}
             >
               {message}
@@ -735,9 +794,11 @@ export default function DashboardPage() {
                 )}
               </div>
             </section>
+
             <section
               style={{
-                marginTop: "28px"
+                marginTop:
+                  "28px"
               }}
             >
               <span className="eyebrow">
@@ -809,7 +870,8 @@ export default function DashboardPage() {
 
             <section
               style={{
-                marginTop: "28px"
+                marginTop:
+                  "28px"
               }}
             >
               <span className="eyebrow">
@@ -832,7 +894,7 @@ export default function DashboardPage() {
                 {!completedInterests.length && (
                   <div className="card">
                     <p className="muted">
-                      Još nemate završenih poslova u svojim interesima.
+                      Još nemate završenih poslova.
                     </p>
                   </div>
                 )}
@@ -843,7 +905,8 @@ export default function DashboardPage() {
               0 && (
               <section
                 style={{
-                  marginTop: "28px"
+                  marginTop:
+                    "28px"
                 }}
               >
                 <span className="eyebrow">
@@ -875,49 +938,12 @@ export default function DashboardPage() {
                           Posao za koji ste iskazali interes je izbrisan ili više nije dostupan.
                         </p>
 
-                        {interest.message && (
-                          <div
-                            style={{
-                              padding:
-                                "14px",
-                              background:
-                                "#f7f8fa",
-                              borderRadius:
-                                "12px",
-                              marginTop:
-                                "12px"
-                            }}
-                          >
-                            <strong>
-                              Moja poruka
-                            </strong>
-
-                            <p
-                              style={{
-                                margin:
-                                  "6px 0 0"
-                              }}
-                            >
-                              {
-                                interest.message
-                              }
-                            </p>
-                          </div>
-                        )}
-
-                        <p
-                          className="muted"
-                          style={{
-                            marginBottom: 0,
-                            marginTop:
-                              "14px"
-                          }}
-                        >
+                        <small>
                           Interes poslan:{" "}
                           {formatDate(
                             interest.created_at
                           )}
-                        </p>
+                        </small>
                       </article>
                     )
                   )}
