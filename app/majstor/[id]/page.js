@@ -2,31 +2,35 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
 
-export default function PublicMajstorPage() {
-  const params = useParams();
+const categories = [
+  "Soboslikarski radovi",
+  "Knauf / suha gradnja",
+  "Keramičarski radovi",
+  "Vodoinstalaterski radovi",
+  "Elektroinstalacije",
+  "Fasaderski radovi",
+  "Podovi i parket",
+  "Kompletna adaptacija"
+];
 
+export default function MajstoriPage() {
   const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState(null);
-  const [reviews, setReviews] = useState([]);
+  const [actionLoading, setActionLoading] = useState("");
+
   const [message, setMessage] = useState("");
 
   const [currentUser, setCurrentUser] = useState(null);
-  const [currentUserProfile, setCurrentUserProfile] =
-    useState(null);
+  const [currentProfile, setCurrentProfile] = useState(null);
 
-  const [rating, setRating] = useState("5");
-  const [comment, setComment] = useState("");
-  const [reviewSaving, setReviewSaving] =
-    useState(false);
-  const [existingReview, setExistingReview] =
-    useState(null);
-  const [
-    hasCompletedJobWithPro,
-    setHasCompletedJobWithPro
-  ] = useState(false);
+  const [pros, setPros] = useState([]);
+  const [favoriteProIds, setFavoriteProIds] = useState([]);
+
+  const [searchText, setSearchText] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [onlyVerified, setOnlyVerified] = useState(false);
+  const [sortMode, setSortMode] = useState("recommended");
 
   const supabaseUrl =
     process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -47,11 +51,14 @@ export default function PublicMajstorPage() {
 
   useEffect(() => {
     loadPage();
-  }, [supabase, params?.id]);
+  }, [supabase]);
 
   async function loadPage() {
-    if (!supabase || !params?.id) {
+    if (!supabase) {
       setLoading(false);
+      setMessage(
+        "Aplikacija nije ispravno konfigurirana."
+      );
       return;
     }
 
@@ -60,142 +67,99 @@ export default function PublicMajstorPage() {
 
     try {
       const {
-        data: authData
+        data: authData,
+        error: authError
       } = await supabase.auth.getUser();
+
+      if (authError) {
+        throw authError;
+      }
 
       const authUser =
         authData?.user || null;
 
-      setCurrentUser(authUser);
+      setCurrentUser(
+        authUser
+      );
+
+      let userProfile = null;
 
       if (authUser) {
         const {
-          data: userProfileData,
-          error: userProfileError
+          data: profileData,
+          error: profileError
         } = await supabase
           .from("profiles")
           .select("id, role")
-          .eq("id", authUser.id)
+          .eq(
+            "id",
+            authUser.id
+          )
           .maybeSingle();
 
-        if (userProfileError) {
-          throw userProfileError;
+        if (profileError) {
+          throw profileError;
         }
 
-        setCurrentUserProfile(
-          userProfileData || null
-        );
-
-        if (
-          userProfileData?.role ===
-            "customer" &&
-          authUser.id !== params.id
-        ) {
-          const {
-            data: completedJob,
-            error: completedJobError
-          } = await supabase
-            .from("jobs")
-            .select("id")
-            .eq(
-              "customer_id",
-              authUser.id
-            )
-            .eq(
-              "selected_pro_id",
-              params.id
-            )
-            .eq(
-              "status",
-              "completed"
-            )
-            .limit(1)
-            .maybeSingle();
-
-          if (completedJobError) {
-            throw completedJobError;
-          }
-
-          setHasCompletedJobWithPro(
-            Boolean(completedJob)
-          );
-        } else {
-          setHasCompletedJobWithPro(
-            false
-          );
-        }
-      } else {
-        setCurrentUserProfile(null);
-        setHasCompletedJobWithPro(
-          false
-        );
+        userProfile =
+          profileData || null;
       }
 
-      const {
-        data,
-        error
-      } = await supabase.rpc(
-        "get_public_pro_profile",
-        {
-          p_user_id: params.id
-        }
+      setCurrentProfile(
+        userProfile
       );
 
-      if (error) {
-        throw error;
+      const {
+        data: directoryData,
+        error: directoryError
+      } = await supabase.rpc(
+        "get_public_pro_directory"
+      );
+
+      if (directoryError) {
+        throw directoryError;
       }
 
-      const publicProfile =
-        Array.isArray(data)
-          ? data[0] || null
-          : data || null;
+      setPros(
+        Array.isArray(directoryData)
+          ? directoryData
+          : []
+      );
 
-      setProfile(publicProfile);
-
-      if (!publicProfile) {
-        setReviews([]);
-        setExistingReview(null);
-
-        setMessage(
-          "Profil majstora nije pronađen."
-        );
-
-        return;
-      }
-
-      await loadReviews();
-
-      if (authUser) {
-        await loadExistingReview(
+      if (
+        authUser &&
+        userProfile?.role === "customer"
+      ) {
+        await loadFavorites(
           authUser.id
         );
       } else {
-        setExistingReview(null);
+        setFavoriteProIds([]);
       }
     } catch (err) {
       console.error(err);
 
       setMessage(
         err?.message ||
-          "Profil se nije mogao učitati."
+          "Majstori se nisu mogli učitati."
       );
     } finally {
       setLoading(false);
     }
   }
 
-  async function loadReviews() {
+  async function loadFavorites(
+    customerId
+  ) {
     const {
       data,
       error
     } = await supabase
-      .from("pro_reviews")
-      .select(
-        "id, rating, comment, created_at"
-      )
+      .from("favorite_pros")
+      .select("pro_id")
       .eq(
-        "pro_id",
-        params.id
+        "customer_id",
+        customerId
       )
       .order(
         "created_at",
@@ -208,140 +172,141 @@ export default function PublicMajstorPage() {
       throw error;
     }
 
-    setReviews(data || []);
-  }
-
-  async function loadExistingReview(
-    userId
-  ) {
-    const {
-      data,
-      error
-    } = await supabase
-      .from("pro_reviews")
-      .select(
-        "id, rating, comment, created_at"
+    setFavoriteProIds(
+      (data || []).map(
+        row =>
+          row.pro_id
       )
-      .eq(
-        "pro_id",
-        params.id
-      )
-      .eq(
-        "customer_id",
-        userId
-      )
-      .maybeSingle();
-
-    if (error) {
-      throw error;
-    }
-
-    setExistingReview(
-      data || null
     );
   }
 
-  async function submitReview(e) {
-    e.preventDefault();
-
+  async function toggleFavorite(
+    proId
+  ) {
     if (
       !supabase ||
-      !currentUser ||
-      reviewSaving ||
-      existingReview
+      !proId ||
+      actionLoading
     ) {
       return;
     }
 
-    setReviewSaving(true);
+    if (!currentUser) {
+      setMessage(
+        "Za spremanje majstora prvo se prijavite."
+      );
+      return;
+    }
+
+    if (
+      currentProfile?.role !==
+      "customer"
+    ) {
+      setMessage(
+        "Majstore mogu spremati samo naručitelji."
+      );
+      return;
+    }
+
+    const isFavorite =
+      favoriteProIds.includes(
+        proId
+      );
+
+    setActionLoading(
+      proId
+    );
+
     setMessage("");
 
     try {
-      const {
-        error
-      } = await supabase
-        .from("pro_reviews")
-        .insert({
-          pro_id: params.id,
-          customer_id:
-            currentUser.id,
-          rating: Number(rating),
-          comment:
-            comment.trim() ||
-            null
-        });
-
-      if (error) {
-        if (
-          error.code === "23505"
-        ) {
-          setMessage(
-            "Već ste ocijenili ovog majstora."
-          );
-
-          await loadExistingReview(
+      if (isFavorite) {
+        const {
+          error
+        } = await supabase
+          .from("favorite_pros")
+          .delete()
+          .eq(
+            "customer_id",
             currentUser.id
+          )
+          .eq(
+            "pro_id",
+            proId
           );
-        } else {
+
+        if (error) {
           throw error;
         }
 
-        return;
+        setFavoriteProIds(
+          current =>
+            current.filter(
+              id =>
+                id !== proId
+            )
+        );
+
+        setMessage(
+          "Majstor je uklonjen iz spremljenih."
+        );
+      } else {
+        const {
+          error
+        } = await supabase
+          .from("favorite_pros")
+          .insert({
+            customer_id:
+              currentUser.id,
+
+            pro_id:
+              proId
+          });
+
+        if (error) {
+          if (
+            error.code === "23505"
+          ) {
+            setFavoriteProIds(
+              current =>
+                current.includes(
+                  proId
+                )
+                  ? current
+                  : [
+                      ...current,
+                      proId
+                    ]
+            );
+
+            return;
+          }
+
+          throw error;
+        }
+
+        setFavoriteProIds(
+          current => [
+            ...current,
+            proId
+          ]
+        );
+
+        setMessage(
+          "Majstor je spremljen."
+        );
       }
-
-      setComment("");
-      setRating("5");
-
-      setMessage(
-        "Hvala! Vaša ocjena je spremljena."
-      );
-
-      await loadReviews();
-
-      await loadExistingReview(
-        currentUser.id
-      );
     } catch (err) {
       console.error(err);
 
       setMessage(
         err?.message ||
-          "Ocjena se nije mogla spremiti."
+          "Promjena nije spremljena."
       );
     } finally {
-      setReviewSaving(false);
+      setActionLoading("");
     }
   }
-
-  const averageRating =
-    useMemo(() => {
-      if (!reviews.length) {
-        return 0;
-      }
-
-      const total =
-        reviews.reduce(
-          (sum, review) =>
-            sum +
-            Number(
-              review.rating || 0
-            ),
-          0
-        );
-
-      return (
-        total /
-        reviews.length
-      );
-    }, [reviews]);
-
-  const portfolioCount =
-    profile?.portfolio_urls?.length ||
-    0;
-
-  const serviceCount =
-    profile?.categories?.length ||
-    0;
 
   function renderStars(value) {
     const rounded =
@@ -358,61 +323,514 @@ export default function PublicMajstorPage() {
     ).join("");
   }
 
-  function formatDate(value) {
-    if (!value) {
-      return "";
+  function ratingText(pro) {
+    const count =
+      Number(
+        pro.review_count
+      ) || 0;
+
+    const rating =
+      Number(
+        pro.average_rating
+      ) || 0;
+
+    if (!count) {
+      return "Još nema ocjena";
     }
 
-    try {
-      return new Intl.DateTimeFormat(
-        "hr-HR",
-        {
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric"
-        }
-      ).format(
-        new Date(value)
-      );
-    } catch {
-      return "";
-    }
+    return `${rating.toFixed(1)} · ${count} ${
+      count === 1
+        ? "recenzija"
+        : "recenzija"
+    }`;
   }
 
-  function StatCard({
-    value,
-    label
+  function locationText(pro) {
+    const parts = [];
+
+    if (pro.address) {
+      parts.push(
+        pro.address
+      );
+    }
+
+    if (pro.zip) {
+      parts.push(
+        pro.zip
+      );
+    }
+
+    return parts.length
+      ? parts.join(" · ")
+      : "Lokacija nije navedena";
+  }
+
+  const visiblePros =
+    useMemo(() => {
+      const term =
+        searchText
+          .trim()
+          .toLowerCase();
+
+      let rows =
+        pros.filter(
+          pro => {
+            const categoriesList =
+              Array.isArray(
+                pro.categories
+              )
+                ? pro.categories
+                : [];
+
+            const categoryOk =
+              !categoryFilter ||
+              categoriesList.includes(
+                categoryFilter
+              );
+
+            const verifiedOk =
+              !onlyVerified ||
+              Boolean(
+                pro.verified
+              );
+
+            const searchableText = [
+              pro.company_name,
+              pro.address,
+              pro.zip,
+              pro.bio,
+              ...categoriesList
+            ]
+              .filter(Boolean)
+              .join(" ")
+              .toLowerCase();
+
+            const textOk =
+              !term ||
+              searchableText.includes(
+                term
+              );
+
+            return (
+              categoryOk &&
+              verifiedOk &&
+              textOk
+            );
+          }
+        );
+
+      rows = [
+        ...rows
+      ];
+
+      if (
+        sortMode ===
+        "rating"
+      ) {
+        rows.sort(
+          (a, b) =>
+            Number(
+              b.average_rating ||
+                0
+            ) -
+            Number(
+              a.average_rating ||
+                0
+            )
+        );
+      }
+
+      if (
+        sortMode ===
+        "reviews"
+      ) {
+        rows.sort(
+          (a, b) =>
+            Number(
+              b.review_count ||
+                0
+            ) -
+            Number(
+              a.review_count ||
+                0
+            )
+        );
+      }
+
+      if (
+        sortMode ===
+        "name"
+      ) {
+        rows.sort(
+          (a, b) =>
+            String(
+              a.company_name ||
+                "Majstor"
+            ).localeCompare(
+              String(
+                b.company_name ||
+                  "Majstor"
+              ),
+              "hr"
+            )
+        );
+      }
+
+      return rows;
+    }, [
+      pros,
+      searchText,
+      categoryFilter,
+      onlyVerified,
+      sortMode
+    ]);
+
+  const favoritePros =
+    useMemo(
+      () =>
+        pros.filter(
+          pro =>
+            favoriteProIds.includes(
+              pro.user_id
+            )
+        ),
+      [
+        pros,
+        favoriteProIds
+      ]
+    );
+
+  function MajstorCard({
+    pro,
+    savedSection = false
   }) {
+    const isFavorite =
+      favoriteProIds.includes(
+        pro.user_id
+      );
+
+    const reviewCount =
+      Number(
+        pro.review_count
+      ) || 0;
+
+    const averageRating =
+      Number(
+        pro.average_rating
+      ) || 0;
+
+    const portfolioCount =
+      Array.isArray(
+        pro.portfolio_urls
+      )
+        ? pro.portfolio_urls.length
+        : 0;
+
+    const serviceCount =
+      Array.isArray(
+        pro.categories
+      )
+        ? pro.categories.length
+        : 0;
+
     return (
-      <div
+      <article
+        className="card"
         style={{
-          padding: "15px",
-          border:
-            "1px solid var(--border)",
-          borderRadius: "16px",
-          textAlign: "center"
+          display: "grid",
+          gap: "16px"
         }}
       >
         <div
           style={{
-            fontSize: "24px",
-            fontWeight: 800,
-            lineHeight: 1.1
+            display: "flex",
+            justifyContent:
+              "space-between",
+            alignItems:
+              "flex-start",
+            gap: "12px",
+            flexWrap: "wrap"
           }}
         >
-          {value}
+          <div
+            style={{
+              minWidth: 0,
+              flex: 1
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                gap: "8px",
+                flexWrap: "wrap",
+                marginBottom:
+                  "8px"
+              }}
+            >
+              {pro.verified ? (
+                <span className="badge">
+                  ✓ Verificirani majstor
+                </span>
+              ) : (
+                <span className="badge">
+                  Majstor
+                </span>
+              )}
+
+              {savedSection && (
+                <span className="badge">
+                  Spremljen
+                </span>
+              )}
+            </div>
+
+            <h3
+              style={{
+                margin:
+                  "0 0 6px"
+              }}
+            >
+              {pro.company_name ||
+                "Majstor"}
+            </h3>
+
+            <p
+              className="muted"
+              style={{
+                margin: 0
+              }}
+            >
+              📍{" "}
+              {locationText(
+                pro
+              )}
+            </p>
+          </div>
+
+          {reviewCount >
+          0 ? (
+            <div
+              style={{
+                textAlign:
+                  "right"
+              }}
+            >
+              <div
+                style={{
+                  fontSize:
+                    "22px",
+                  lineHeight:
+                    1
+                }}
+              >
+                {renderStars(
+                  averageRating
+                )}
+              </div>
+
+              <small className="muted">
+                {ratingText(
+                  pro
+                )}
+              </small>
+            </div>
+          ) : (
+            <small className="muted">
+              Još nema ocjena
+            </small>
+          )}
         </div>
 
+        {pro.bio && (
+          <p
+            style={{
+              margin: 0
+            }}
+          >
+            {pro.bio}
+          </p>
+        )}
+
+        {Array.isArray(
+          pro.categories
+        ) &&
+          pro.categories.length >
+            0 && (
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "7px"
+              }}
+            >
+              {pro.categories.map(
+                category => (
+                  <span
+                    key={
+                      category
+                    }
+                    className="badge"
+                  >
+                    {category}
+                  </span>
+                )
+              )}
+            </div>
+          )}
+
         <div
-          className="muted"
           style={{
-            fontSize: "13px",
-            marginTop: "6px"
+            display: "grid",
+            gridTemplateColumns:
+              "repeat(3, minmax(0, 1fr))",
+            gap: "8px"
           }}
         >
-          {label}
+          <div
+            style={{
+              padding:
+                "12px 8px",
+              background:
+                "#f7f8fa",
+              borderRadius:
+                "12px",
+              textAlign:
+                "center"
+            }}
+          >
+            <strong>
+              {reviewCount}
+            </strong>
+
+            <div
+              className="muted"
+              style={{
+                fontSize:
+                  "12px",
+                marginTop:
+                  "3px"
+              }}
+            >
+              Recenzije
+            </div>
+          </div>
+
+          <div
+            style={{
+              padding:
+                "12px 8px",
+              background:
+                "#f7f8fa",
+              borderRadius:
+                "12px",
+              textAlign:
+                "center"
+            }}
+          >
+            <strong>
+              {portfolioCount}
+            </strong>
+
+            <div
+              className="muted"
+              style={{
+                fontSize:
+                  "12px",
+                marginTop:
+                  "3px"
+              }}
+            >
+              Fotografije
+            </div>
+          </div>
+
+          <div
+            style={{
+              padding:
+                "12px 8px",
+              background:
+                "#f7f8fa",
+              borderRadius:
+                "12px",
+              textAlign:
+                "center"
+            }}
+          >
+            <strong>
+              {serviceCount}
+            </strong>
+
+            <div
+              className="muted"
+              style={{
+                fontSize:
+                  "12px",
+                marginTop:
+                  "3px"
+              }}
+            >
+              Usluge
+            </div>
+          </div>
         </div>
-      </div>
+
+        {pro.service_radius_km !=
+          null && (
+          <p
+            className="muted"
+            style={{
+              margin: 0
+            }}
+          >
+            Radijus rada:{" "}
+            <strong>
+              {
+                pro.service_radius_km
+              }{" "}
+              km
+            </strong>
+          </p>
+        )}
+
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "8px"
+          }}
+        >
+          <Link
+            href={`/majstor/${pro.user_id}`}
+            className="button"
+          >
+            Pogledaj profil
+          </Link>
+
+          {currentProfile?.role ===
+            "customer" && (
+            <button
+              type="button"
+              className="button secondary"
+              disabled={
+                actionLoading ===
+                pro.user_id
+              }
+              onClick={() =>
+                toggleFavorite(
+                  pro.user_id
+                )
+              }
+            >
+              {actionLoading ===
+              pro.user_id
+                ? "Spremam..."
+                : isFavorite
+                  ? "★ Spremljen"
+                  : "☆ Spremi majstora"}
+            </button>
+          )}
+        </div>
+      </article>
     );
   }
 
@@ -422,7 +840,7 @@ export default function PublicMajstorPage() {
         <div className="container">
           <div className="card">
             <h1>
-              Majstor
+              Majstori
             </h1>
 
             <p>
@@ -444,73 +862,285 @@ export default function PublicMajstorPage() {
             </span>
 
             <h1>
-              Profil majstora
+              Pronađi majstora
             </h1>
 
             <p className="muted">
-              Učitavanje...
+              Učitavanje majstora...
             </p>
           </div>
         </div>
       </main>
     );
   }
-
-  if (!profile) {
-    return (
-      <main className="section">
-        <div className="container">
-          <div className="card">
-            <span className="eyebrow">
-              MOJMEŠTAR
-            </span>
-
-            <h1>
-              Profil nije pronađen
-            </h1>
-
-            <p>
-              {message ||
-                "Ovaj profil trenutno nije dostupan."}
-            </p>
-
-            <div className="actions">
-              <Link
-                href="/jobs"
-                className="button"
-              >
-                Pogledaj poslove
-              </Link>
-            </div>
-          </div>
-        </div>
-      </main>
-    );
-  }
-
-  const isCustomerViewer =
-    currentUser &&
-    currentUserProfile?.role ===
-      "customer" &&
-    currentUser.id !==
-      params.id;
-
-  const canReview =
-    isCustomerViewer &&
-    hasCompletedJobWithPro;
 
   return (
     <main className="section">
       <div className="container">
         <div
-          className="card"
           style={{
-            marginBottom: "18px"
+            marginBottom:
+              "24px"
           }}
         >
           <span className="eyebrow">
-            PROFIL MAJSTORA
+            MOJMEŠTAR
           </span>
+
+          <h1>
+            Pronađi majstora
+          </h1>
+
+          <p className="muted">
+            Pretražite majstore prema usluzi, lokaciji, ocjenama i statusu verifikacije.
+          </p>
+        </div>
+
+        {message && (
+          <div
+            className="card"
+            style={{
+              padding: "14px",
+              marginBottom:
+                "18px"
+            }}
+          >
+            {message}
+          </div>
+        )}
+
+        {currentProfile?.role ===
+          "customer" &&
+          favoritePros.length >
+            0 && (
+            <section
+              style={{
+                marginBottom:
+                  "34px"
+              }}
+            >
+              <span className="eyebrow">
+                Favoriti
+              </span>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent:
+                    "space-between",
+                  alignItems:
+                    "flex-end",
+                  gap: "10px",
+                  flexWrap:
+                    "wrap",
+                  marginBottom:
+                    "14px"
+                }}
+              >
+                <div>
+                  <h2
+                    style={{
+                      marginBottom:
+                        "4px"
+                    }}
+                  >
+                    Spremljeni majstori
+                  </h2>
+
+                  <p
+                    className="muted"
+                    style={{
+                      margin: 0
+                    }}
+                  >
+                    Majstori koje ste spremili za kasnije.
+                  </p>
+                </div>
+
+                <span className="badge">
+                  {
+                    favoritePros.length
+                  }
+                </span>
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(auto-fit, minmax(280px, 1fr))",
+                  gap: "14px"
+                }}
+              >
+                {favoritePros.map(
+                  pro => (
+                    <MajstorCard
+                      key={
+                        pro.user_id
+                      }
+                      pro={pro}
+                      savedSection
+                    />
+                  )
+                )}
+              </div>
+            </section>
+          )}
+
+        <section>
+          <span className="eyebrow">
+            Pretraga
+          </span>
+
+          <h2>
+            Svi majstori
+          </h2>
+
+          <div
+            className="card"
+            style={{
+              marginBottom:
+                "18px"
+            }}
+          >
+            <div
+              style={{
+                display: "grid",
+                gap: "12px"
+              }}
+            >
+              <label>
+                Pretraži
+
+                <input
+                  value={
+                    searchText
+                  }
+                  onChange={e =>
+                    setSearchText(
+                      e.target.value
+                    )
+                  }
+                  placeholder="Naziv, usluga, lokacija ili poštanski broj"
+                />
+              </label>
+
+              <label>
+                Usluga
+
+                <select
+                  value={
+                    categoryFilter
+                  }
+                  onChange={e =>
+                    setCategoryFilter(
+                      e.target.value
+                    )
+                  }
+                >
+                  <option value="">
+                    Sve usluge
+                  </option>
+
+                  {categories.map(
+                    category => (
+                      <option
+                        key={
+                          category
+                        }
+                        value={
+                          category
+                        }
+                      >
+                        {category}
+                      </option>
+                    )
+                  )}
+                </select>
+              </label>
+
+              <label>
+                Sortiranje
+
+                <select
+                  value={
+                    sortMode
+                  }
+                  onChange={e =>
+                    setSortMode(
+                      e.target.value
+                    )
+                  }
+                >
+                  <option value="recommended">
+                    Preporučeno
+                  </option>
+
+                  <option value="rating">
+                    Najbolje ocijenjeni
+                  </option>
+
+                  <option value="reviews">
+                    Najviše recenzija
+                  </option>
+
+                  <option value="name">
+                    Naziv A–Ž
+                  </option>
+                </select>
+              </label>
+
+              <label
+                style={{
+                  display: "flex",
+                  alignItems:
+                    "center",
+                  gap: "10px",
+                  cursor:
+                    "pointer"
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={
+                    onlyVerified
+                  }
+                  onChange={e =>
+                    setOnlyVerified(
+                      e.target.checked
+                    )
+                  }
+                  style={{
+                    width: "20px",
+                    height: "20px"
+                  }}
+                />
+
+                Samo verificirani majstori
+              </label>
+
+              {(searchText ||
+                categoryFilter ||
+                onlyVerified ||
+                sortMode !==
+                  "recommended") && (
+                <button
+                  type="button"
+                  className="button secondary"
+                  onClick={() => {
+                    setSearchText("");
+                    setCategoryFilter("");
+                    setOnlyVerified(false);
+                    setSortMode(
+                      "recommended"
+                    );
+                  }}
+                >
+                  Poništi filtre
+                </button>
+              )}
+            </div>
+          </div>
 
           <div
             style={{
@@ -518,695 +1148,119 @@ export default function PublicMajstorPage() {
               justifyContent:
                 "space-between",
               alignItems:
-                "flex-start",
-              gap: "14px",
-              flexWrap: "wrap"
-            }}
-          >
-            <div>
-              <h1
-                style={{
-                  marginBottom:
-                    "10px"
-                }}
-              >
-                {profile.company_name ||
-                  "Majstor"}
-              </h1>
-
-              {profile.verified && (
-                <div
-                  className="badge"
-                  style={{
-                    marginBottom:
-                      "12px"
-                  }}
-                >
-                  ✓ Verificirani majstor
-                </div>
-              )}
-
-              {(profile.address ||
-                profile.zip) && (
-                <p
-                  className="muted"
-                  style={{
-                    margin: 0
-                  }}
-                >
-                  📍{" "}
-                  {profile.address ||
-                    ""}
-                  {profile.address &&
-                  profile.zip
-                    ? ", "
-                    : ""}
-                  {profile.zip || ""}
-                </p>
-              )}
-            </div>
-
-            {reviews.length >
-            0 ? (
-              <div
-                style={{
-                  textAlign:
-                    "right"
-                }}
-              >
-                <div
-                  style={{
-                    fontSize:
-                      "25px",
-                    lineHeight: 1
-                  }}
-                >
-                  {renderStars(
-                    averageRating
-                  )}
-                </div>
-
-                <p
-                  style={{
-                    margin:
-                      "7px 0 0"
-                  }}
-                >
-                  <strong>
-                    {averageRating.toFixed(
-                      1
-                    )}
-                  </strong>{" "}
-                  / 5
-                </p>
-
-                <small className="muted">
-                  {reviews.length}{" "}
-                  recenzija
-                </small>
-              </div>
-            ) : (
-              <span className="muted">
-                Još nema ocjena
-              </span>
-            )}
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns:
-                "repeat(auto-fit, minmax(120px, 1fr))",
+                "center",
               gap: "10px",
-              marginTop: "22px"
+              flexWrap: "wrap",
+              marginBottom:
+                "14px"
             }}
           >
-            <StatCard
-              value={
-                reviews.length
-                  ? averageRating.toFixed(
-                      1
-                    )
-                  : "–"
-              }
-              label="Prosječna ocjena"
-            />
-
-            <StatCard
-              value={
-                reviews.length
-              }
-              label="Recenzije"
-            />
-
-            <StatCard
-              value={
-                portfolioCount
-              }
-              label="Fotografije"
-            />
-
-            <StatCard
-              value={
-                profile.service_radius_km
-                  ? `${profile.service_radius_km} km`
-                  : "–"
-              }
-              label="Radijus rada"
-            />
-          </div>
-
-          {isCustomerViewer && (
-            <div
-              className="actions"
-              style={{
-                marginTop: "20px"
-              }}
-            >
-              <Link
-                href="/jobs"
-                className="button"
-              >
-                Objavi posao
-              </Link>
-
-              {canReview &&
-                !existingReview && (
-                  <a
-                    href="#ocijeni"
-                    className="button secondary"
-                  >
-                    Ocijeni majstora
-                  </a>
-                )}
-            </div>
-          )}
-        </div>
-
-        <div
-          className="card"
-          style={{
-            marginBottom: "18px"
-          }}
-        >
-          <span className="eyebrow">
-            Povjerenje
-          </span>
-
-          <h2>
-            Informacije o profilu
-          </h2>
-
-          <div
-            style={{
-              display: "grid",
-              gap: "12px"
-            }}
-          >
-            <div>
-              <strong>
-                Verifikacija
-              </strong>
-
-              <p
-                className="muted"
-                style={{
-                  margin:
-                    "4px 0 0"
-                }}
-              >
-                {profile.verified
-                  ? "Profil majstora je verificiran."
-                  : "Profil još nema oznaku verificiranog majstora."}
-              </p>
-            </div>
-
-            <div>
-              <strong>
-                Recenzije
-              </strong>
-
-              <p
-                className="muted"
-                style={{
-                  margin:
-                    "4px 0 0"
-                }}
-              >
-                Ocjenu mogu ostaviti naručitelji nakon završenog posla s odabranim majstorom.
-              </p>
-            </div>
-
-            <div>
-              <strong>
-                Područja rada
-              </strong>
-
-              <p
-                className="muted"
-                style={{
-                  margin:
-                    "4px 0 0"
-                }}
-              >
-                {serviceCount
-                  ? `${serviceCount} usluga navedeno na profilu.`
-                  : "Majstor još nije naveo područja rada."}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div
-          className="card"
-          style={{
-            marginBottom: "18px"
-          }}
-        >
-          <span className="eyebrow">
-            O majstoru
-          </span>
-
-          <h2>
-            Opis
-          </h2>
-
-          <p
-            style={{
-              marginBottom: 0
-            }}
-          >
-            {profile.bio ||
-              "Majstor još nije dodao opis profila."}
-          </p>
-        </div>
-
-        <div
-          className="card"
-          style={{
-            marginBottom: "18px"
-          }}
-        >
-          <span className="eyebrow">
-            Usluge
-          </span>
-
-          <h2>
-            Područja rada
-          </h2>
-
-          {profile.categories
-            ?.length ? (
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: "10px"
-              }}
-            >
-              {profile.categories.map(
-                category => (
-                  <span
-                    key={category}
-                    className="badge"
-                  >
-                    {category}
-                  </span>
-                )
-              )}
-            </div>
-          ) : (
-            <p className="muted">
-              Usluge još nisu unesene.
-            </p>
-          )}
-
-          {profile.service_radius_km && (
-            <p
-              style={{
-                marginTop: "18px",
-                marginBottom: 0
-              }}
-            >
-              <strong>
-                Radijus usluge:
-              </strong>{" "}
-              {
-                profile.service_radius_km
-              }{" "}
-              km
-            </p>
-          )}
-        </div>
-
-        {profile.portfolio_urls
-          ?.length > 0 && (
-          <div
-            className="card"
-            style={{
-              marginBottom: "18px"
-            }}
-          >
-            <span className="eyebrow">
-              Portfolio
-            </span>
-
-            <h2>
-              Referentni radovi
-            </h2>
-
             <p
               className="muted"
               style={{
-                marginBottom:
-                  "16px"
+                margin: 0
               }}
             >
-              Fotografije koje je majstor dodao kao primjere svojih radova.
+              Pronađeno:{" "}
+              <strong>
+                {
+                  visiblePros.length
+                }
+              </strong>
             </p>
 
+            {!currentUser && (
+              <p
+                className="muted"
+                style={{
+                  margin: 0
+                }}
+              >
+                Za spremanje majstora potrebno je prijaviti se.
+              </p>
+            )}
+          </div>
+
+          {visiblePros.length ? (
             <div
               style={{
                 display: "grid",
                 gridTemplateColumns:
-                  "repeat(auto-fit, minmax(145px, 1fr))",
-                gap: "12px"
+                  "repeat(auto-fit, minmax(280px, 1fr))",
+                gap: "14px"
               }}
             >
-              {profile.portfolio_urls.map(
-                (url, index) => (
-                  <a
-                    key={`${url}-${index}`}
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      display: "block",
-                      borderRadius:
-                        "18px",
-                      overflow:
-                        "hidden",
-                      border:
-                        "1px solid var(--border)",
-                      background:
-                        "var(--card)",
-                      aspectRatio:
-                        "1 / 1"
-                    }}
-                  >
-                    <img
-                      src={url}
-                      alt={`Referentni rad ${index + 1}`}
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit:
-                          "cover",
-                        display:
-                          "block"
-                      }}
-                    />
-                  </a>
+              {visiblePros.map(
+                pro => (
+                  <MajstorCard
+                    key={
+                      pro.user_id
+                    }
+                    pro={pro}
+                  />
                 )
               )}
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="card">
+              <h3>
+                Nema rezultata
+              </h3>
 
-        {canReview &&
-          !existingReview && (
-            <form
-              id="ocijeni"
-              onSubmit={
-                submitReview
-              }
-              className="card form"
-              style={{
-                marginBottom:
-                  "18px"
-              }}
-            >
-              <span className="eyebrow">
-                Završeni posao
-              </span>
-
-              <h2>
-                Ocijeni majstora
-              </h2>
-
-              <p className="muted">
-                Vaša ocjena pomaže drugim naručiteljima pri odabiru majstora.
-              </p>
-
-              <label>
-                Broj zvjezdica
-
-                <select
-                  value={rating}
-                  onChange={e =>
-                    setRating(
-                      e.target
-                        .value
-                    )
-                  }
-                >
-                  <option value="5">
-                    5 ★★★★★
-                  </option>
-
-                  <option value="4">
-                    4 ★★★★☆
-                  </option>
-
-                  <option value="3">
-                    3 ★★★☆☆
-                  </option>
-
-                  <option value="2">
-                    2 ★★☆☆☆
-                  </option>
-
-                  <option value="1">
-                    1 ★☆☆☆☆
-                  </option>
-                </select>
-              </label>
-
-              <label>
-                Komentar
-
-                <textarea
-                  rows="4"
-                  value={comment}
-                  onChange={e =>
-                    setComment(
-                      e.target
-                        .value
-                    )
-                  }
-                  placeholder="Kako ste zadovoljni radom majstora?"
-                />
-              </label>
-
-              <button
-                type="submit"
-                className="button"
-                disabled={
-                  reviewSaving
-                }
-              >
-                {reviewSaving
-                  ? "Spremam..."
-                  : "Pošalji ocjenu"}
-              </button>
-            </form>
-          )}
-
-        {isCustomerViewer &&
-          existingReview && (
-            <div
-              className="card"
-              style={{
-                marginBottom:
-                  "18px"
-              }}
-            >
-              <span className="eyebrow">
-                Vaša ocjena
-              </span>
-
-              <h2>
-                Već ste ocijenili ovog majstora
-              </h2>
-
-              <div
+              <p
+                className="muted"
                 style={{
-                  fontSize: "26px",
                   marginBottom:
-                    "8px"
+                    "12px"
                 }}
               >
-                {renderStars(
-                  existingReview.rating
-                )}
-              </div>
-
-              <p>
-                <strong>
-                  {
-                    existingReview.rating
-                  }
-                  /5
-                </strong>
+                Nema majstora koji odgovaraju odabranim kriterijima.
               </p>
 
-              {existingReview.comment && (
-                <p
-                  style={{
-                    marginBottom: 0
-                  }}
-                >
-                  {
-                    existingReview.comment
-                  }
-                </p>
-              )}
+              <button
+                type="button"
+                className="button secondary"
+                onClick={() => {
+                  setSearchText("");
+                  setCategoryFilter("");
+                  setOnlyVerified(false);
+                  setSortMode(
+                    "recommended"
+                  );
+                }}
+              >
+                Prikaži sve majstore
+              </button>
             </div>
           )}
+        </section>
 
         <div
           className="card"
           style={{
-            marginBottom: "18px"
+            marginTop:
+              "30px"
           }}
         >
           <span className="eyebrow">
-            Iskustva naručitelja
+            Trebate pomoć?
           </span>
 
           <h2>
-            Recenzije korisnika
+            Objavite posao
           </h2>
 
-          <p
-            className="muted"
-            style={{
-              marginBottom: "16px"
-            }}
-          >
-            Recenzije mogu ostaviti naručitelji nakon završenog posla.
+          <p className="muted">
+            Ako ne želite sami tražiti majstora, objavite posao i zainteresirani majstori mogu vam se javiti.
           </p>
 
-          {!reviews.length ? (
-            <p className="muted">
-              Ovaj majstor još nema recenzija.
-            </p>
-          ) : (
-            <div
-              style={{
-                display: "grid",
-                gap: "12px"
-              }}
-            >
-              {reviews.map(
-                review => (
-                  <div
-                    key={review.id}
-                    style={{
-                      padding: "16px",
-                      border:
-                        "1px solid var(--border)",
-                      borderRadius:
-                        "16px"
-                    }}
-                  >
-                    <div
-                      style={{
-                        display:
-                          "flex",
-                        justifyContent:
-                          "space-between",
-                        alignItems:
-                          "flex-start",
-                        gap: "10px",
-                        flexWrap:
-                          "wrap"
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize:
-                            "22px",
-                          lineHeight: 1
-                        }}
-                      >
-                        {renderStars(
-                          review.rating
-                        )}
-                      </div>
-
-                      <span className="badge">
-                        Završeni posao
-                      </span>
-                    </div>
-
-                    <p
-                      style={{
-                        margin:
-                          "10px 0 6px"
-                      }}
-                    >
-                      <strong>
-                        {
-                          review.rating
-                        }
-                        /5
-                      </strong>
-                    </p>
-
-                    {review.comment && (
-                      <p>
-                        {
-                          review.comment
-                        }
-                      </p>
-                    )}
-
-                    <small className="muted">
-                      {formatDate(
-                        review.created_at
-                      )}
-                    </small>
-                  </div>
-                )
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="card">
-          <span className="eyebrow">
-            MOJMEŠTAR
-          </span>
-
-          <h2>
-            Trebate majstora?
-          </h2>
-
-          <p>
-            Objavite svoj posao i pronađite majstora za potrebne radove.
-          </p>
-
-          <div className="actions">
-            <Link
-              href="/jobs"
-              className="button"
-            >
-              Objavi posao
-            </Link>
-
-            <Link
-              href="/"
-              className="button secondary"
-            >
-              Početna
-            </Link>
-          </div>
-        </div>
-
-        {message && (
-          <div
-            style={{
-              marginTop: "16px",
-              padding: "12px",
-              borderRadius: "12px",
-              background:
-                "#f7f8fa"
-            }}
+          <Link
+            href="/jobs"
+            className="button"
           >
-            {message}
-          </div>
-        )}
+            Objavi posao
+          </Link>
+        </div>
       </div>
     </main>
   );
