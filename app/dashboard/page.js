@@ -8,10 +8,13 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState("");
   const [message, setMessage] = useState("");
+
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
+
   const [myJobs, setMyJobs] = useState([]);
   const [myInterests, setMyInterests] = useState([]);
+  const [proReviews, setProReviews] = useState([]);
 
   const supabaseUrl =
     process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -106,6 +109,7 @@ export default function DashboardPage() {
         setProfile(null);
         setMyJobs([]);
         setMyInterests([]);
+        setProReviews([]);
         return;
       }
 
@@ -123,14 +127,21 @@ export default function DashboardPage() {
         await loadCustomerJobs(
           authUser.id
         );
+
+        setProReviews([]);
       }
 
       if (
         currentProfile?.role === "pro"
       ) {
-        await loadProInterests(
-          authUser.id
-        );
+        await Promise.all([
+          loadProInterests(
+            authUser.id
+          ),
+          loadProReviews(
+            authUser.id
+          )
+        ]);
       }
     } catch (err) {
       console.error(err);
@@ -256,6 +267,37 @@ export default function DashboardPage() {
     setMyJobs([]);
   }
 
+  async function loadProReviews(
+    userId
+  ) {
+    const {
+      data,
+      error
+    } = await supabase
+      .from("pro_reviews")
+      .select(
+        "id, rating, comment, created_at"
+      )
+      .eq(
+        "pro_id",
+        userId
+      )
+      .order(
+        "created_at",
+        {
+          ascending: false
+        }
+      );
+
+    if (error) {
+      throw error;
+    }
+
+    setProReviews(
+      data || []
+    );
+  }
+
   async function completeJob(jobId) {
     if (
       !supabase ||
@@ -359,6 +401,21 @@ export default function DashboardPage() {
     }
 
     return "Nepoznato";
+  }
+
+  function renderStars(value) {
+    const rounded =
+      Math.round(
+        Number(value) || 0
+      );
+
+    return Array.from(
+      { length: 5 },
+      (_, index) =>
+        index < rounded
+          ? "★"
+          : "☆"
+    ).join("");
   }
 
   /*
@@ -477,6 +534,28 @@ export default function DashboardPage() {
       [myInterests]
     );
 
+  const averageRating =
+    useMemo(() => {
+      if (!proReviews.length) {
+        return 0;
+      }
+
+      const total =
+        proReviews.reduce(
+          (sum, review) =>
+            sum +
+            Number(
+              review.rating || 0
+            ),
+          0
+        );
+
+      return (
+        total /
+        proReviews.length
+      );
+    }, [proReviews]);
+
   function StatCard({
     value,
     label
@@ -528,7 +607,6 @@ export default function DashboardPage() {
     return (
       <article
         className="card"
-        key={job.id}
         style={{
           marginBottom: "16px"
         }}
@@ -766,7 +844,6 @@ export default function DashboardPage() {
     return (
       <article
         className="card"
-        key={interest.id}
         style={{
           marginBottom: "16px"
         }}
@@ -888,7 +965,8 @@ export default function DashboardPage() {
             </div>
           )}
 
-        {mode === "not-selected" && (
+        {mode ===
+          "not-selected" && (
           <div
             style={{
               padding: "12px",
@@ -919,7 +997,8 @@ export default function DashboardPage() {
               padding: "14px",
               background:
                 "#f7f8fa",
-              borderRadius: "12px"
+              borderRadius:
+                "12px"
             }}
           >
             <strong>
@@ -928,7 +1007,8 @@ export default function DashboardPage() {
 
             <p
               style={{
-                margin: "6px 0 0"
+                margin:
+                  "6px 0 0"
               }}
             >
               {interest.message}
@@ -964,14 +1044,33 @@ export default function DashboardPage() {
             </small>
           </div>
 
-          {mode === "open" && (
-            <Link
-              href="/jobs"
-              className="button small"
-            >
-              Otvori poslove
-            </Link>
-          )}
+          <div
+            style={{
+              display: "flex",
+              gap: "8px",
+              flexWrap: "wrap"
+            }}
+          >
+            {mode === "open" && (
+              <Link
+                href="/jobs"
+                className="button small"
+              >
+                Otvori poslove
+              </Link>
+            )}
+
+            {mode ===
+              "completed" &&
+              user?.id && (
+                <Link
+                  href={`/majstor/${user.id}`}
+                  className="button secondary small"
+                >
+                  Pogledaj ocjene
+                </Link>
+              )}
+          </div>
         </div>
       </article>
     );
@@ -1110,6 +1209,17 @@ export default function DashboardPage() {
             >
               Osvježi
             </button>
+
+            {profile?.role ===
+              "pro" &&
+              user?.id && (
+                <Link
+                  href={`/majstor/${user.id}`}
+                  className="button secondary"
+                >
+                  Javni profil
+                </Link>
+              )}
           </div>
 
           {message && (
@@ -1117,7 +1227,8 @@ export default function DashboardPage() {
               style={{
                 marginTop: "16px",
                 padding: "12px",
-                borderRadius: "12px",
+                borderRadius:
+                  "12px",
                 background:
                   "#f7f8fa"
               }}
@@ -1299,7 +1410,106 @@ export default function DashboardPage() {
                 }
                 label="Završeni poslovi"
               />
+
+              <StatCard
+                value={
+                  proReviews.length
+                    ? averageRating.toFixed(
+                        1
+                      )
+                    : "–"
+                }
+                label="Prosječna ocjena"
+              />
+
+              <StatCard
+                value={
+                  proReviews.length
+                }
+                label="Recenzije"
+              />
             </div>
+
+            <section
+              style={{
+                marginBottom:
+                  "30px"
+              }}
+            >
+              <span className="eyebrow">
+                Moja reputacija
+              </span>
+
+              <h2>
+                Ocjene naručitelja
+              </h2>
+
+              <div className="card">
+                {proReviews.length ? (
+                  <>
+                    <div
+                      style={{
+                        fontSize:
+                          "30px",
+                        lineHeight: 1,
+                        marginBottom:
+                          "10px"
+                      }}
+                    >
+                      {renderStars(
+                        averageRating
+                      )}
+                    </div>
+
+                    <p
+                      style={{
+                        margin:
+                          "0 0 6px"
+                      }}
+                    >
+                      <strong>
+                        {averageRating.toFixed(
+                          1
+                        )}
+                        /5
+                      </strong>
+                    </p>
+
+                    <p className="muted">
+                      {proReviews.length}{" "}
+                      {proReviews.length ===
+                      1
+                        ? "recenzija"
+                        : "recenzija"}
+                    </p>
+
+                    <Link
+                      href={`/majstor/${user.id}`}
+                      className="button secondary"
+                    >
+                      Pogledaj javni profil i sve ocjene
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <p>
+                      Još nemate ocjena.
+                    </p>
+
+                    <p className="muted">
+                      Nakon završenog posla naručitelj vas može ocijeniti.
+                    </p>
+
+                    <Link
+                      href={`/majstor/${user.id}`}
+                      className="button secondary"
+                    >
+                      Pogledaj javni profil
+                    </Link>
+                  </>
+                )}
+              </div>
+            </section>
 
             <section>
               <span className="eyebrow">
@@ -1417,6 +1627,99 @@ export default function DashboardPage() {
                 )}
               </div>
             </section>
+
+            {proReviews.length >
+              0 && (
+              <section
+                style={{
+                  marginTop:
+                    "30px"
+                }}
+              >
+                <span className="eyebrow">
+                  Moje ocjene
+                </span>
+
+                <h2>
+                  Posljednje recenzije
+                </h2>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gap: "12px"
+                  }}
+                >
+                  {proReviews
+                    .slice(0, 5)
+                    .map(
+                      review => (
+                        <article
+                          key={
+                            review.id
+                          }
+                          className="card"
+                        >
+                          <div
+                            style={{
+                              fontSize:
+                                "24px",
+                              lineHeight:
+                                1
+                            }}
+                          >
+                            {renderStars(
+                              review.rating
+                            )}
+                          </div>
+
+                          <p
+                            style={{
+                              margin:
+                                "10px 0 6px"
+                            }}
+                          >
+                            <strong>
+                              {
+                                review.rating
+                              }
+                              /5
+                            </strong>
+                          </p>
+
+                          {review.comment && (
+                            <p>
+                              {
+                                review.comment
+                              }
+                            </p>
+                          )}
+
+                          <small className="muted">
+                            {formatDate(
+                              review.created_at
+                            )}
+                          </small>
+                        </article>
+                      )
+                    )}
+                </div>
+
+                <div
+                  style={{
+                    marginTop:
+                      "14px"
+                  }}
+                >
+                  <Link
+                    href={`/majstor/${user.id}`}
+                    className="button secondary"
+                  >
+                    Sve recenzije
+                  </Link>
+                </div>
+              </section>
+            )}
 
             {notSelectedInterests.length >
               0 && (
