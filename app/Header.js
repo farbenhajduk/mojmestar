@@ -1,33 +1,52 @@
 "use client";
 
 import Link from "next/link";
+
 import {
   useEffect,
   useMemo,
   useState
 } from "react";
-import { useRouter } from "next/navigation";
-import { createBrowserClient } from "@supabase/ssr";
+
+import {
+  useRouter
+} from "next/navigation";
+
+import {
+  createBrowserClient
+} from "@supabase/ssr";
 
 export default function Header() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] =
+    useState(null);
+
+  const [profile, setProfile] =
+    useState(null);
+
+  const [loading, setLoading] =
+    useState(true);
 
   const [
     unreadNotifications,
     setUnreadNotifications
   ] = useState(0);
 
-  const router = useRouter();
+  const router =
+    useRouter();
 
   const supabaseUrl =
-    process.env.NEXT_PUBLIC_SUPABASE_URL;
+    process.env
+      .NEXT_PUBLIC_SUPABASE_URL;
 
   const supabaseKey =
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    process.env
+      .NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   const supabase = useMemo(() => {
-    if (!supabaseUrl || !supabaseKey) {
+    if (
+      !supabaseUrl ||
+      !supabaseKey
+    ) {
       return null;
     }
 
@@ -35,7 +54,10 @@ export default function Header() {
       supabaseUrl,
       supabaseKey
     );
-  }, [supabaseUrl, supabaseKey]);
+  }, [
+    supabaseUrl,
+    supabaseKey
+  ]);
 
   useEffect(() => {
     if (!supabase) {
@@ -43,13 +65,54 @@ export default function Header() {
       return;
     }
 
-    let activeUserId = null;
+    let activeUserId =
+      null;
+
+    async function loadProfile(
+      userId
+    ) {
+      if (!userId) {
+        setProfile(null);
+        return;
+      }
+
+      const {
+        data,
+        error
+      } =
+        await supabase
+          .from("profiles")
+          .select(
+            "id, role"
+          )
+          .eq(
+            "id",
+            userId
+          )
+          .maybeSingle();
+
+      if (error) {
+        console.error(
+          "Profile error:",
+          error
+        );
+
+        return;
+      }
+
+      setProfile(
+        data || null
+      );
+    }
 
     async function loadNotificationCount(
       userId
     ) {
       if (!userId) {
-        setUnreadNotifications(0);
+        setUnreadNotifications(
+          0
+        );
+
         return;
       }
 
@@ -57,23 +120,27 @@ export default function Header() {
         const {
           count,
           error
-        } = await supabase
-          .from("notifications")
-          .select(
-            "id",
-            {
-              count: "exact",
-              head: true
-            }
-          )
-          .eq(
-            "user_id",
-            userId
-          )
-          .eq(
-            "is_read",
-            false
-          );
+        } =
+          await supabase
+            .from(
+              "notifications"
+            )
+            .select(
+              "id",
+              {
+                count:
+                  "exact",
+                head: true
+              }
+            )
+            .eq(
+              "user_id",
+              userId
+            )
+            .eq(
+              "is_read",
+              false
+            );
 
         if (error) {
           console.error(
@@ -100,7 +167,8 @@ export default function Header() {
         data,
         error
       } =
-        await supabase.auth.getUser();
+        await supabase.auth
+          .getUser();
 
       if (error) {
         console.error(
@@ -116,15 +184,26 @@ export default function Header() {
         authUser?.id || null;
 
       setUser(authUser);
-      setLoading(false);
 
       if (authUser?.id) {
-        await loadNotificationCount(
-          authUser.id
-        );
+        await Promise.all([
+          loadProfile(
+            authUser.id
+          ),
+
+          loadNotificationCount(
+            authUser.id
+          )
+        ]);
       } else {
-        setUnreadNotifications(0);
+        setProfile(null);
+
+        setUnreadNotifications(
+          0
+        );
       }
+
+      setLoading(false);
     }
 
     loadUser();
@@ -132,39 +211,48 @@ export default function Header() {
     const {
       data: authListener
     } =
-      supabase.auth.onAuthStateChange(
-        async (
-          _event,
-          session
-        ) => {
-          const authUser =
-            session?.user || null;
+      supabase.auth
+        .onAuthStateChange(
+          async (
+            _event,
+            session
+          ) => {
+            const authUser =
+              session?.user ||
+              null;
 
-          activeUserId =
-            authUser?.id || null;
+            activeUserId =
+              authUser?.id ||
+              null;
 
-          setUser(authUser);
+            setUser(authUser);
 
-          if (authUser?.id) {
-            await loadNotificationCount(
-              authUser.id
-            );
-          } else {
-            setUnreadNotifications(0);
+            if (
+              authUser?.id
+            ) {
+              await Promise.all([
+                loadProfile(
+                  authUser.id
+                ),
+
+                loadNotificationCount(
+                  authUser.id
+                )
+              ]);
+            } else {
+              setProfile(null);
+
+              setUnreadNotifications(
+                0
+              );
+            }
           }
-        }
-      );
+        );
 
-    /*
-     * Sobald der Benutzer wieder in den Tab
-     * zurückkehrt, aktualisieren wir den Zähler.
-     *
-     * Dadurch sieht man neue Benachrichtigungen
-     * auch ohne kompletten Reload.
-     */
     async function handleVisibilityChange() {
       if (
-        document.visibilityState ===
+        document
+          .visibilityState ===
           "visible" &&
         activeUserId
       ) {
@@ -192,15 +280,12 @@ export default function Header() {
       handleWindowFocus
     );
 
-    /*
-     * Zusätzlich alle 30 Sekunden aktualisieren.
-     * Das hält die Glocke aktuell, ohne dass
-     * Supabase Realtime zwingend aktiviert sein muss.
-     */
     const notificationInterval =
       window.setInterval(
         () => {
-          if (activeUserId) {
+          if (
+            activeUserId
+          ) {
             loadNotificationCount(
               activeUserId
             );
@@ -235,10 +320,15 @@ export default function Header() {
       return;
     }
 
-    await supabase.auth.signOut();
+    await supabase.auth
+      .signOut();
 
     setUser(null);
-    setUnreadNotifications(0);
+    setProfile(null);
+
+    setUnreadNotifications(
+      0
+    );
 
     router.push("/");
     router.refresh();
@@ -246,13 +336,15 @@ export default function Header() {
 
   function notificationLabel() {
     if (
-      unreadNotifications === 0
+      unreadNotifications ===
+      0
     ) {
       return "Obavijesti";
     }
 
     if (
-      unreadNotifications === 1
+      unreadNotifications ===
+      1
     ) {
       return "1 nova obavijest";
     }
@@ -275,8 +367,19 @@ export default function Header() {
             Poslovi
           </Link>
 
+          <Link href="/majstori">
+            Majstori
+          </Link>
+
           {!loading && user ? (
             <>
+              {profile?.role ===
+                "customer" && (
+                <Link href="/favoriti">
+                  Spremljeni
+                </Link>
+              )}
+
               <Link href="/profile">
                 Profil
               </Link>
@@ -311,8 +414,7 @@ export default function Header() {
                   style={{
                     fontSize:
                       "20px",
-                    lineHeight:
-                      1
+                    lineHeight: 1
                   }}
                 >
                   🔔
@@ -324,10 +426,8 @@ export default function Header() {
                     style={{
                       position:
                         "absolute",
-                      top:
-                        "-5px",
-                      right:
-                        "-7px",
+                      top: "-5px",
+                      right: "-7px",
                       minWidth:
                         "20px",
                       height:
@@ -346,8 +446,7 @@ export default function Header() {
                         "11px",
                       fontWeight:
                         800,
-                      lineHeight:
-                        1,
+                      lineHeight: 1,
                       background:
                         "#111827",
                       color:
@@ -378,7 +477,11 @@ export default function Header() {
                         "6px"
                     }}
                   >
-                    ({unreadNotifications})
+                    (
+                    {
+                      unreadNotifications
+                    }
+                    )
                   </span>
                 )}
               </Link>
@@ -386,7 +489,9 @@ export default function Header() {
               <button
                 type="button"
                 className="button small"
-                onClick={logout}
+                onClick={
+                  logout
+                }
               >
                 Odjava
               </button>
