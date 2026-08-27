@@ -1,13 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState
+} from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
 
 export default function Header() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const [
+    unreadNotifications,
+    setUnreadNotifications
+  ] = useState(0);
 
   const router = useRouter();
 
@@ -34,39 +43,221 @@ export default function Header() {
       return;
     }
 
+    let activeUserId = null;
+
+    async function loadNotificationCount(
+      userId
+    ) {
+      if (!userId) {
+        setUnreadNotifications(0);
+        return;
+      }
+
+      try {
+        const {
+          count,
+          error
+        } = await supabase
+          .from("notifications")
+          .select(
+            "id",
+            {
+              count: "exact",
+              head: true
+            }
+          )
+          .eq(
+            "user_id",
+            userId
+          )
+          .eq(
+            "is_read",
+            false
+          );
+
+        if (error) {
+          console.error(
+            "Notification count error:",
+            error
+          );
+
+          return;
+        }
+
+        setUnreadNotifications(
+          count || 0
+        );
+      } catch (error) {
+        console.error(
+          "Notification count error:",
+          error
+        );
+      }
+    }
+
     async function loadUser() {
-      const { data } =
+      const {
+        data,
+        error
+      } =
         await supabase.auth.getUser();
 
-      setUser(data?.user || null);
+      if (error) {
+        console.error(
+          "Auth error:",
+          error
+        );
+      }
+
+      const authUser =
+        data?.user || null;
+
+      activeUserId =
+        authUser?.id || null;
+
+      setUser(authUser);
       setLoading(false);
+
+      if (authUser?.id) {
+        await loadNotificationCount(
+          authUser.id
+        );
+      } else {
+        setUnreadNotifications(0);
+      }
     }
 
     loadUser();
 
-    const { data: authListener } =
+    const {
+      data: authListener
+    } =
       supabase.auth.onAuthStateChange(
-        (_event, session) => {
-          setUser(
-            session?.user || null
-          );
+        async (
+          _event,
+          session
+        ) => {
+          const authUser =
+            session?.user || null;
+
+          activeUserId =
+            authUser?.id || null;
+
+          setUser(authUser);
+
+          if (authUser?.id) {
+            await loadNotificationCount(
+              authUser.id
+            );
+          } else {
+            setUnreadNotifications(0);
+          }
         }
       );
 
+    /*
+     * Sobald der Benutzer wieder in den Tab
+     * zurückkehrt, aktualisieren wir den Zähler.
+     *
+     * Dadurch sieht man neue Benachrichtigungen
+     * auch ohne kompletten Reload.
+     */
+    async function handleVisibilityChange() {
+      if (
+        document.visibilityState ===
+          "visible" &&
+        activeUserId
+      ) {
+        await loadNotificationCount(
+          activeUserId
+        );
+      }
+    }
+
+    async function handleWindowFocus() {
+      if (activeUserId) {
+        await loadNotificationCount(
+          activeUserId
+        );
+      }
+    }
+
+    document.addEventListener(
+      "visibilitychange",
+      handleVisibilityChange
+    );
+
+    window.addEventListener(
+      "focus",
+      handleWindowFocus
+    );
+
+    /*
+     * Zusätzlich alle 30 Sekunden aktualisieren.
+     * Das hält die Glocke aktuell, ohne dass
+     * Supabase Realtime zwingend aktiviert sein muss.
+     */
+    const notificationInterval =
+      window.setInterval(
+        () => {
+          if (activeUserId) {
+            loadNotificationCount(
+              activeUserId
+            );
+          }
+        },
+        30000
+      );
+
     return () => {
-      authListener?.subscription?.unsubscribe();
+      authListener
+        ?.subscription
+        ?.unsubscribe();
+
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange
+      );
+
+      window.removeEventListener(
+        "focus",
+        handleWindowFocus
+      );
+
+      window.clearInterval(
+        notificationInterval
+      );
     };
   }, [supabase]);
 
   async function logout() {
-    if (!supabase) return;
+    if (!supabase) {
+      return;
+    }
 
     await supabase.auth.signOut();
 
     setUser(null);
+    setUnreadNotifications(0);
 
     router.push("/");
     router.refresh();
+  }
+
+  function notificationLabel() {
+    if (
+      unreadNotifications === 0
+    ) {
+      return "Obavijesti";
+    }
+
+    if (
+      unreadNotifications === 1
+    ) {
+      return "1 nova obavijest";
+    }
+
+    return `${unreadNotifications} novih obavijesti`;
   }
 
   return (
@@ -92,9 +283,104 @@ export default function Header() {
 
               <Link
                 href="/dashboard"
+                aria-label={
+                  notificationLabel()
+                }
+                title={
+                  notificationLabel()
+                }
+                style={{
+                  position:
+                    "relative",
+                  display:
+                    "inline-flex",
+                  alignItems:
+                    "center",
+                  justifyContent:
+                    "center",
+                  minWidth:
+                    "42px",
+                  minHeight:
+                    "38px",
+                  textDecoration:
+                    "none"
+                }}
+              >
+                <span
+                  aria-hidden="true"
+                  style={{
+                    fontSize:
+                      "20px",
+                    lineHeight:
+                      1
+                  }}
+                >
+                  🔔
+                </span>
+
+                {unreadNotifications >
+                  0 && (
+                  <span
+                    style={{
+                      position:
+                        "absolute",
+                      top:
+                        "-5px",
+                      right:
+                        "-7px",
+                      minWidth:
+                        "20px",
+                      height:
+                        "20px",
+                      padding:
+                        "0 5px",
+                      borderRadius:
+                        "999px",
+                      display:
+                        "inline-flex",
+                      alignItems:
+                        "center",
+                      justifyContent:
+                        "center",
+                      fontSize:
+                        "11px",
+                      fontWeight:
+                        800,
+                      lineHeight:
+                        1,
+                      background:
+                        "#111827",
+                      color:
+                        "#ffffff",
+                      border:
+                        "2px solid white"
+                    }}
+                  >
+                    {unreadNotifications >
+                    99
+                      ? "99+"
+                      : unreadNotifications}
+                  </span>
+                )}
+              </Link>
+
+              <Link
+                href="/dashboard"
                 className="button secondary small"
               >
                 Moj pregled
+
+                {unreadNotifications >
+                  0 && (
+                  <span
+                    style={{
+                      marginLeft:
+                        "6px"
+                    }}
+                  >
+                    ({unreadNotifications})
+                  </span>
+                )}
               </Link>
 
               <button
