@@ -296,6 +296,64 @@ export default function JobsPage() {
           );
       }
 
+      if (
+        authUser &&
+        profile?.role === "pro"
+      ) {
+        const {
+          data: selectedAssignedJobs,
+          error: selectedAssignedError
+        } = await supabase
+          .from("jobs")
+          .select("*")
+          .eq(
+            "selected_pro_id",
+            authUser.id
+          )
+          .eq(
+            "status",
+            "assigned"
+          )
+          .order(
+            "created_at",
+            {
+              ascending: false
+            }
+          );
+
+        if (selectedAssignedError) {
+          throw selectedAssignedError;
+        }
+
+        const allById =
+          new Map();
+
+        for (
+          const job of [
+            ...loadedJobs,
+            ...(selectedAssignedJobs || [])
+          ]
+        ) {
+          allById.set(
+            job.id,
+            job
+          );
+        }
+
+        loadedJobs =
+          Array.from(
+            allById.values()
+          ).sort(
+            (a, b) =>
+              new Date(
+                b.created_at
+              ).getTime() -
+              new Date(
+                a.created_at
+              ).getTime()
+          );
+      }
+
       setJobs(
         loadedJobs
       );
@@ -526,15 +584,20 @@ export default function JobsPage() {
         authUser &&
         profile?.role === "pro"
       ) {
-        const openJobs =
+        const contactJobs =
           loadedJobs.filter(
             job =>
-              job.status === "open"
+              job.status === "open" ||
+              (
+                job.status === "assigned" &&
+                job.selected_pro_id ===
+                  authUser.id
+              )
           );
 
         const results =
           await Promise.all(
-            openJobs.map(
+            contactJobs.map(
               async job => {
                 const {
                   data: contactData,
@@ -1108,8 +1171,7 @@ export default function JobsPage() {
       );
     }
   }
-
-  async function showInterest(
+    async function showInterest(
     job
   ) {
     if (!supabase) {
@@ -1327,19 +1389,55 @@ export default function JobsPage() {
     useMemo(() => {
       return jobs.filter(
         job => {
+          const selectedAssignedForMe =
+            userProfile?.role ===
+              "pro" &&
+            job.status ===
+              "assigned" &&
+            job.selected_pro_id ===
+              currentUserId;
+
+          /*
+           * Majstor vidi:
+           * 1. otvorene poslove
+           * 2. posao za koji je upravo on odabran
+           *
+           * Posao koji je dodijeljen drugom majstoru
+           * više mu se ne prikazuje.
+           */
           if (
-            userProfile?.role === "pro" &&
-            job.status !== "open"
+            userProfile?.role ===
+            "pro" &&
+            job.status !== "open" &&
+            !selectedAssignedForMe
           ) {
             return false;
           }
 
+          /*
+           * Naručitelj vidi svoje assigned/completed
+           * poslove. Ostali korisnici ih ne vide.
+           */
           if (
+            userProfile?.role !==
+              "pro" &&
             job.status !== "open" &&
             job.customer_id !==
               currentUserId
           ) {
             return false;
+          }
+
+          /*
+           * Ako je majstor već odabran za posao,
+           * posao mu uvijek ostaje vidljiv.
+           * Grad, kategorija i radijus ga više
+           * ne smiju sakriti.
+           */
+          if (
+            selectedAssignedForMe
+          ) {
+            return true;
           }
 
           const cityOk =
@@ -1434,6 +1532,17 @@ export default function JobsPage() {
           currentUserId &&
         job.status ===
           "completed"
+    ).length;
+
+  const selectedAssignedCount =
+    visibleJobs.filter(
+      job =>
+        userProfile?.role ===
+          "pro" &&
+        job.status ===
+          "assigned" &&
+        job.selected_pro_id ===
+          currentUserId
     ).length;
 
   if (!supabase) {
@@ -1549,6 +1658,54 @@ export default function JobsPage() {
                 Završeni
               </div>
             </div>
+          </div>
+        )}
+
+        {userProfile?.role ===
+          "pro" &&
+          selectedAssignedCount >
+            0 && (
+          <div
+            className="card"
+            style={{
+              marginBottom:
+                "20px",
+              padding:
+                "16px"
+            }}
+          >
+            <span className="eyebrow">
+              Aktivni radovi
+            </span>
+
+            <h3
+              style={{
+                marginBottom:
+                  "6px"
+              }}
+            >
+              {selectedAssignedCount ===
+              1
+                ? "Imate posao u tijeku"
+                : `Imate ${selectedAssignedCount} poslova u tijeku`}
+            </h3>
+
+            <p
+              className="muted"
+              style={{
+                marginBottom:
+                  "12px"
+              }}
+            >
+              Poslovi za koje ste odabrani ostaju prikazani i nakon što više nisu otvoreni za druge majstore.
+            </p>
+
+            <Link
+              href="/dashboard"
+              className="button small"
+            >
+              Moj pregled
+            </Link>
           </div>
         )}
 
@@ -1750,7 +1907,7 @@ export default function JobsPage() {
                     marginBottom: 0
                   }}
                 >
-                  Prikazuju se otvoreni poslovi koji odgovaraju vašem spremljenom radijusu rada.
+                  Otvoreni poslovi filtriraju se prema vašem spremljenom radijusu rada. Posao za koji ste već odabrani ostaje vidljiv bez obzira na filter.
                 </p>
               </div>
             )}
@@ -1825,6 +1982,13 @@ export default function JobsPage() {
                     job.status ===
                     "completed";
 
+                  const isSelectedPro =
+                    userProfile?.role ===
+                      "pro" &&
+                    isAssigned &&
+                    job.selected_pro_id ===
+                      currentUserId;
+
                   const jobInterests =
                     interestsByJob[
                       job.id
@@ -1874,6 +2038,12 @@ export default function JobsPage() {
                               Moj posao
                             </span>
                           )}
+
+                          {isSelectedPro && (
+                            <span className="badge">
+                              Odabrani ste
+                            </span>
+                          )}
                         </div>
 
                         <span className="badge">
@@ -1913,7 +2083,37 @@ export default function JobsPage() {
                         {job.description}
                       </p>
 
-                      {!isOpen && (
+                      {isSelectedPro && (
+                        <div
+                          style={{
+                            padding:
+                              "14px",
+                            background:
+                              "#f7f8fa",
+                            borderRadius:
+                              "12px",
+                            marginTop:
+                              "12px"
+                          }}
+                        >
+                          <strong>
+                            Odabrani ste za ovaj posao
+                          </strong>
+
+                          <p
+                            className="muted"
+                            style={{
+                              margin:
+                                "6px 0 0"
+                            }}
+                          >
+                            Naručitelj je odabrao vas kao izvođača. Posao je sada u tijeku i više nije dostupan drugim majstorima.
+                          </p>
+                        </div>
+                      )}
+
+                      {!isOpen &&
+                        !isSelectedPro && (
                         <div
                           style={{
                             padding:
@@ -2404,6 +2604,59 @@ export default function JobsPage() {
                               )}
                             </div>
                           )}
+
+                        {isSelectedPro && (
+                          <div
+                            style={{
+                              display:
+                                "grid",
+                              gap:
+                                "8px"
+                            }}
+                          >
+                            {unlockedPhones[
+                              job.id
+                            ] && (
+                              <a
+                                className="button"
+                                href={`tel:${unlockedPhones[
+                                  job.id
+                                ].replace(
+                                  /\s+/g,
+                                  ""
+                                )}`}
+                              >
+                                Nazovi naručitelja:{" "}
+                                {
+                                  unlockedPhones[
+                                    job.id
+                                  ]
+                                }
+                              </a>
+                            )}
+
+                            {!unlockedPhones[
+                              job.id
+                            ] && (
+                              <p
+                                className="muted"
+                                style={{
+                                  margin:
+                                    "0"
+                                }}
+                              >
+                                Kontakt naručitelja trenutno nije dostupan na ovoj stranici.
+                              </p>
+                            )}
+
+                            <Link
+                              href="/dashboard"
+                              className="button secondary"
+                            >
+                              Moj pregled
+                            </Link>
+                          </div>
+                        )}
                       </div>
                     </article>
                   );
