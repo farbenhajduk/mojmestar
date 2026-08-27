@@ -30,6 +30,7 @@ export default function MajstoriPage() {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [onlyVerified, setOnlyVerified] = useState(false);
   const [sortMode, setSortMode] = useState("recommended");
+  const [filtersReady, setFiltersReady] = useState(false);
 
   const supabaseUrl =
     process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -49,8 +50,128 @@ export default function MajstoriPage() {
   }, [supabaseUrl, supabaseKey]);
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params =
+        new URLSearchParams(
+          window.location.search
+        );
+
+      const category =
+        params.get("category") || "";
+
+      const search =
+        params.get("q") || "";
+
+      const verified =
+        params.get("verified") === "1";
+
+      const sort =
+        params.get("sort") ||
+        "recommended";
+
+      if (
+        category &&
+        categories.includes(category)
+      ) {
+        setCategoryFilter(
+          category
+        );
+      } else {
+        setCategoryFilter("");
+      }
+
+      setSearchText(search);
+      setOnlyVerified(verified);
+
+      if (
+        [
+          "recommended",
+          "rating",
+          "reviews",
+          "name"
+        ].includes(sort)
+      ) {
+        setSortMode(sort);
+      } else {
+        setSortMode(
+          "recommended"
+        );
+      }
+    }
+
+    setFiltersReady(true);
     loadPage();
   }, [supabase]);
+
+  useEffect(() => {
+    if (
+      !filtersReady ||
+      typeof window === "undefined"
+    ) {
+      return;
+    }
+
+    const params =
+      new URLSearchParams();
+
+    const cleanSearch =
+      searchText.trim();
+
+    if (cleanSearch) {
+      params.set(
+        "q",
+        cleanSearch
+      );
+    }
+
+    if (categoryFilter) {
+      params.set(
+        "category",
+        categoryFilter
+      );
+    }
+
+    if (onlyVerified) {
+      params.set(
+        "verified",
+        "1"
+      );
+    }
+
+    if (
+      sortMode !== "recommended"
+    ) {
+      params.set(
+        "sort",
+        sortMode
+      );
+    }
+
+    const query =
+      params.toString();
+
+    const nextUrl =
+      query
+        ? `/majstori?${query}`
+        : "/majstori";
+
+    const currentUrl =
+      `${window.location.pathname}${window.location.search}`;
+
+    if (currentUrl !== nextUrl) {
+      window.history.replaceState(
+        null,
+        "",
+        nextUrl
+      );
+    }
+  }, [
+    filtersReady,
+    searchText,
+    categoryFilter,
+    onlyVerified,
+    sortMode
+  ]);
 
   async function loadPage() {
     if (!supabase) {
@@ -584,8 +705,7 @@ export default function MajstoriPage() {
             </p>
           </div>
 
-          {reviewCount >
-          0 ? (
+          {reviewCount > 0 ? (
             <div
               style={{
                 textAlign:
