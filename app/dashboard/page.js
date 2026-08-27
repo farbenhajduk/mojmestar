@@ -17,6 +17,7 @@ export default function DashboardPage() {
   const [myInterests, setMyInterests] = useState([]);
   const [proReviews, setProReviews] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [favoritePros, setFavoritePros] = useState([]);
 
   const supabaseUrl =
     process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -114,6 +115,7 @@ export default function DashboardPage() {
         setMyInterests([]);
         setProReviews([]);
         setNotifications([]);
+        setFavoritePros([]);
         return;
       }
 
@@ -143,6 +145,10 @@ export default function DashboardPage() {
 
           loadCustomerJobs(
             authUser.id
+          ),
+
+          loadCustomerFavorites(
+            authUser.id
           )
         ]);
 
@@ -164,6 +170,8 @@ export default function DashboardPage() {
             authUser.id
           )
         ]);
+
+        setFavoritePros([]);
       }
     } catch (err) {
       console.error(err);
@@ -373,6 +381,150 @@ export default function DashboardPage() {
     );
 
     setMyInterests([]);
+  }
+
+  async function loadCustomerFavorites(
+    userId
+  ) {
+    const {
+      data: favoriteRows,
+      error: favoriteError
+    } = await supabase
+      .from("favorite_pros")
+      .select("pro_id, created_at")
+      .eq(
+        "customer_id",
+        userId
+      )
+      .order(
+        "created_at",
+        {
+          ascending: false
+        }
+      );
+
+    if (favoriteError) {
+      throw favoriteError;
+    }
+
+    const ids =
+      (favoriteRows || [])
+        .map(
+          row => row.pro_id
+        )
+        .filter(Boolean);
+
+    if (!ids.length) {
+      setFavoritePros([]);
+      return;
+    }
+
+    const {
+      data: directoryData,
+      error: directoryError
+    } = await supabase.rpc(
+      "get_public_pro_directory"
+    );
+
+    if (directoryError) {
+      throw directoryError;
+    }
+
+    const directory =
+      Array.isArray(directoryData)
+        ? directoryData
+        : [];
+
+    const prosById =
+      Object.fromEntries(
+        directory.map(
+          pro => [
+            pro.user_id,
+            pro
+          ]
+        )
+      );
+
+    setFavoritePros(
+      ids
+        .map(
+          id => prosById[id]
+        )
+        .filter(Boolean)
+    );
+  }
+
+  async function removeFavorite(
+    proId
+  ) {
+    if (
+      !supabase ||
+      !user?.id ||
+      !proId ||
+      actionLoading
+    ) {
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        "Želite li ukloniti ovog majstora iz spremljenih?"
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const loadingKey =
+      `favorite-${proId}`;
+
+    setActionLoading(
+      loadingKey
+    );
+
+    setMessage("");
+
+    try {
+      const {
+        error
+      } = await supabase
+        .from("favorite_pros")
+        .delete()
+        .eq(
+          "customer_id",
+          user.id
+        )
+        .eq(
+          "pro_id",
+          proId
+        );
+
+      if (error) {
+        throw error;
+      }
+
+      setFavoritePros(
+        current =>
+          current.filter(
+            pro =>
+              pro.user_id !==
+              proId
+          )
+      );
+
+      setMessage(
+        "Majstor je uklonjen iz spremljenih."
+      );
+    } catch (err) {
+      console.error(err);
+
+      setMessage(
+        err?.message ||
+          "Majstora nije moguće ukloniti iz spremljenih."
+      );
+    } finally {
+      setActionLoading("");
+    }
   }
 
   async function loadProInterests(
@@ -730,6 +882,28 @@ export default function DashboardPage() {
           ? "★"
           : "☆"
     ).join("");
+  }
+
+  function favoriteLocationText(
+    pro
+  ) {
+    const parts = [];
+
+    if (pro?.address) {
+      parts.push(
+        pro.address
+      );
+    }
+
+    if (pro?.zip) {
+      parts.push(
+        pro.zip
+      );
+    }
+
+    return parts.length
+      ? parts.join(" · ")
+      : "Lokacija nije navedena";
   }
 
   /*
@@ -1206,6 +1380,176 @@ export default function DashboardPage() {
           </div>
         )}
       </section>
+    );
+  }
+
+  function CustomerFavoriteCard({
+    pro
+  }) {
+    const reviewCount =
+      Number(
+        pro.review_count
+      ) || 0;
+
+    const average =
+      Number(
+        pro.average_rating
+      ) || 0;
+
+    const loadingKey =
+      `favorite-${pro.user_id}`;
+
+    return (
+      <article
+        className="card"
+        style={{
+          display: "grid",
+          gap: "12px"
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent:
+              "space-between",
+            gap: "10px",
+            alignItems:
+              "flex-start",
+            flexWrap: "wrap"
+          }}
+        >
+          <div>
+            <div
+              style={{
+                display: "flex",
+                gap: "7px",
+                flexWrap: "wrap",
+                marginBottom: "7px"
+              }}
+            >
+              <span className="badge">
+                ★ Spremljen
+              </span>
+
+              {pro.verified && (
+                <span className="badge">
+                  ✓ Verificirani
+                </span>
+              )}
+            </div>
+
+            <h3
+              style={{
+                margin: "0 0 5px"
+              }}
+            >
+              {pro.company_name ||
+                "Majstor"}
+            </h3>
+
+            <p
+              className="muted"
+              style={{
+                margin: 0
+              }}
+            >
+              📍 {favoriteLocationText(
+                pro
+              )}
+            </p>
+          </div>
+
+          <div
+            style={{
+              textAlign: "right"
+            }}
+          >
+            {reviewCount > 0 ? (
+              <>
+                <div
+                  style={{
+                    fontSize: "20px",
+                    lineHeight: 1
+                  }}
+                >
+                  {renderStars(
+                    average
+                  )}
+                </div>
+
+                <small className="muted">
+                  {average.toFixed(1)} · {reviewCount} recenzija
+                </small>
+              </>
+            ) : (
+              <small className="muted">
+                Još nema ocjena
+              </small>
+            )}
+          </div>
+        </div>
+
+        {Array.isArray(
+          pro.categories
+        ) &&
+          pro.categories.length >
+            0 && (
+            <div
+              style={{
+                display: "flex",
+                gap: "7px",
+                flexWrap: "wrap"
+              }}
+            >
+              {pro.categories
+                .slice(0, 3)
+                .map(
+                  category => (
+                    <span
+                      className="badge"
+                      key={category}
+                    >
+                      {category}
+                    </span>
+                  )
+                )}
+            </div>
+          )}
+
+        <div
+          style={{
+            display: "flex",
+            gap: "8px",
+            flexWrap: "wrap"
+          }}
+        >
+          <Link
+            href={`/majstor/${pro.user_id}`}
+            className="button small"
+          >
+            Pogledaj profil
+          </Link>
+
+          <button
+            type="button"
+            className="button secondary small"
+            disabled={
+              actionLoading ===
+              loadingKey
+            }
+            onClick={() =>
+              removeFavorite(
+                pro.user_id
+              )
+            }
+          >
+            {actionLoading ===
+            loadingKey
+              ? "Uklanjam..."
+              : "Ukloni"}
+          </button>
+        </div>
+      </article>
     );
   }
 
@@ -1856,6 +2200,16 @@ export default function DashboardPage() {
               Poslovi
             </Link>
 
+            {profile?.role ===
+              "customer" && (
+              <Link
+                href="/favoriti"
+                className="button secondary"
+              >
+                Spremljeni majstori
+              </Link>
+            )}
+
             <button
               type="button"
               className="button secondary"
@@ -1934,11 +2288,126 @@ export default function DashboardPage() {
 
               <StatCard
                 value={
+                  favoritePros.length
+                }
+                label="Spremljeni majstori"
+              />
+
+              <StatCard
+                value={
                   unreadCount
                 }
                 label="Nove obavijesti"
               />
             </div>
+
+            <section
+              style={{
+                marginBottom: "30px"
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent:
+                    "space-between",
+                  alignItems: "flex-end",
+                  gap: "12px",
+                  flexWrap: "wrap",
+                  marginBottom: "14px"
+                }}
+              >
+                <div>
+                  <span className="eyebrow">
+                    Favoriti
+                  </span>
+
+                  <h2
+                    style={{
+                      marginBottom: "4px"
+                    }}
+                  >
+                    Spremljeni majstori
+                  </h2>
+
+                  <p
+                    className="muted"
+                    style={{
+                      margin: 0
+                    }}
+                  >
+                    Brzi pristup majstorima koje ste spremili.
+                  </p>
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "8px",
+                    flexWrap: "wrap"
+                  }}
+                >
+                  <Link
+                    href="/majstori"
+                    className="button secondary small"
+                  >
+                    Pronađi majstora
+                  </Link>
+
+                  {favoritePros.length >
+                    0 && (
+                    <Link
+                      href="/favoriti"
+                      className="button small"
+                    >
+                      Svi spremljeni
+                    </Link>
+                  )}
+                </div>
+              </div>
+
+              {favoritePros.length ? (
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns:
+                      "repeat(auto-fit, minmax(280px, 1fr))",
+                    gap: "14px"
+                  }}
+                >
+                  {favoritePros
+                    .slice(0, 3)
+                    .map(
+                      pro => (
+                        <CustomerFavoriteCard
+                          key={
+                            pro.user_id
+                          }
+                          pro={pro}
+                        />
+                      )
+                    )}
+                </div>
+              ) : (
+                <div className="card">
+                  <p
+                    className="muted"
+                    style={{
+                      marginBottom: "12px"
+                    }}
+                  >
+                    Još nemate spremljenih majstora.
+                  </p>
+
+                  <Link
+                    href="/majstori"
+                    className="button"
+                  >
+                    Pregledaj majstore
+                  </Link>
+                </div>
+              )}
+            </section>
 
             <section>
               <span className="eyebrow">
