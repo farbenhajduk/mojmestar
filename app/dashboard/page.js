@@ -19,6 +19,15 @@ export default function DashboardPage() {
   const [notifications, setNotifications] = useState([]);
   const [favoritePros, setFavoritePros] = useState([]);
 
+  const [showAllNotifications, setShowAllNotifications] =
+    useState(false);
+
+  const [showCompleted, setShowCompleted] =
+    useState(false);
+
+  const [showOldInterests, setShowOldInterests] =
+    useState(false);
+
   const supabaseUrl =
     process.env.NEXT_PUBLIC_SUPABASE_URL;
 
@@ -152,6 +161,7 @@ export default function DashboardPage() {
           )
         ]);
 
+        setMyInterests([]);
         setProReviews([]);
       }
 
@@ -171,6 +181,7 @@ export default function DashboardPage() {
           )
         ]);
 
+        setMyJobs([]);
         setFavoritePros([]);
       }
     } catch (err) {
@@ -269,9 +280,7 @@ export default function DashboardPage() {
           "Obavijest nije moguće označiti kao pročitanu."
       );
     } finally {
-      setNotificationLoading(
-        ""
-      );
+      setNotificationLoading("");
     }
   }
 
@@ -325,9 +334,7 @@ export default function DashboardPage() {
           "Obavijesti nije moguće označiti kao pročitane."
       );
     } finally {
-      setNotificationLoading(
-        ""
-      );
+      setNotificationLoading("");
     }
   }
 
@@ -344,9 +351,7 @@ export default function DashboardPage() {
       );
     }
 
-    if (
-      notification.href
-    ) {
+    if (notification.href) {
       window.location.href =
         notification.href;
     }
@@ -379,8 +384,6 @@ export default function DashboardPage() {
     setMyJobs(
       data || []
     );
-
-    setMyInterests([]);
   }
 
   async function loadCustomerFavorites(
@@ -554,11 +557,8 @@ export default function DashboardPage() {
     const interestRows =
       interests || [];
 
-    if (
-      !interestRows.length
-    ) {
+    if (!interestRows.length) {
       setMyInterests([]);
-      setMyJobs([]);
       return;
     }
 
@@ -613,8 +613,6 @@ export default function DashboardPage() {
     setMyInterests(
       combined
     );
-
-    setMyJobs([]);
   }
 
   async function loadProReviews(
@@ -702,9 +700,7 @@ export default function DashboardPage() {
           "Posao nije moguće završiti."
       );
     } finally {
-      setActionLoading(
-        ""
-      );
+      setActionLoading("");
     }
   }
 
@@ -759,21 +755,15 @@ export default function DashboardPage() {
   function statusLabel(
     status
   ) {
-    if (
-      status === "open"
-    ) {
+    if (status === "open") {
       return "Aktivan";
     }
 
-    if (
-      status === "assigned"
-    ) {
+    if (status === "assigned") {
       return "U tijeku";
     }
 
-    if (
-      status === "completed"
-    ) {
+    if (status === "completed") {
       return "Završen";
     }
 
@@ -783,88 +773,26 @@ export default function DashboardPage() {
     );
   }
 
-  function statusBadge(
-    status
-  ) {
-    if (
-      status === "open"
-    ) {
-      return "Aktivan";
-    }
-
-    if (
-      status === "assigned"
-    ) {
-      return "Posao u tijeku";
-    }
-
-    if (
-      status === "completed"
-    ) {
-      return "Završen";
-    }
-
-    return "Nepoznato";
-  }
-
   function notificationIcon(
     type
   ) {
-    if (
-      type === "new_interest"
-    ) {
+    if (type === "new_interest") {
       return "👷";
     }
 
-    if (
-      type === "job_assigned"
-    ) {
+    if (type === "job_assigned") {
       return "✅";
     }
 
-    if (
-      type === "job_completed"
-    ) {
+    if (type === "job_completed") {
       return "🏁";
     }
 
-    if (
-      type === "new_review"
-    ) {
+    if (type === "new_review") {
       return "★";
     }
 
     return "●";
-  }
-
-  function notificationActionLabel(
-    type
-  ) {
-    if (
-      type === "new_interest"
-    ) {
-      return "Pogledaj majstore";
-    }
-
-    if (
-      type === "job_assigned"
-    ) {
-      return "Pogledaj posao";
-    }
-
-    if (
-      type === "job_completed"
-    ) {
-      return "Otvori pregled";
-    }
-
-    if (
-      type === "new_review"
-    ) {
-      return "Pogledaj ocjenu";
-    }
-
-    return "Otvori";
   }
 
   function renderStars(
@@ -906,10 +834,6 @@ export default function DashboardPage() {
       : "Lokacija nije navedena";
   }
 
-  /*
-   * NARUČITELJ
-   */
-
   const openJobs =
     useMemo(
       () =>
@@ -943,18 +867,13 @@ export default function DashboardPage() {
       [myJobs]
     );
 
-  /*
-   * MAJSTOR
-   */
-
   const openInterests =
     useMemo(
       () =>
         myInterests.filter(
           interest =>
             interest.job &&
-            interest.job
-              .status ===
+            interest.job.status ===
               "open"
         ),
       [myInterests]
@@ -966,8 +885,7 @@ export default function DashboardPage() {
         myInterests.filter(
           interest =>
             interest.job &&
-            interest.job
-              .status ===
+            interest.job.status ===
               "assigned" &&
             interest.job
               .selected_pro_id ===
@@ -985,8 +903,7 @@ export default function DashboardPage() {
         myInterests.filter(
           interest =>
             interest.job &&
-            interest.job
-              .status ===
+            interest.job.status ===
               "completed" &&
             interest.job
               .selected_pro_id ===
@@ -1010,11 +927,9 @@ export default function DashboardPage() {
               .selected_pro_id !==
               user?.id &&
             (
-              interest.job
-                .status ===
+              interest.job.status ===
                 "assigned" ||
-              interest.job
-                .status ===
+              interest.job.status ===
                 "completed"
             )
         ),
@@ -1035,75 +950,72 @@ export default function DashboardPage() {
     );
 
   const averageRating =
-    useMemo(
-      () => {
-        if (
-          !proReviews.length
-        ) {
-          return 0;
-        }
+    useMemo(() => {
+      if (!proReviews.length) {
+        return 0;
+      }
 
-        const total =
-          proReviews.reduce(
-            (
-              sum,
-              review
-            ) =>
-              sum +
-              Number(
-                review.rating ||
-                  0
-              ),
-            0
-          );
-
-        return (
-          total /
-          proReviews.length
+      const total =
+        proReviews.reduce(
+          (
+            sum,
+            review
+          ) =>
+            sum +
+            Number(
+              review.rating ||
+                0
+            ),
+          0
         );
-      },
-      [proReviews]
-    );
 
-  const unreadNotifications =
+      return (
+        total /
+        proReviews.length
+      );
+    }, [proReviews]);
+
+  const unreadCount =
     useMemo(
       () =>
         notifications.filter(
           notification =>
             !notification.is_read
-        ),
+        ).length,
       [notifications]
     );
 
-  const unreadCount =
-    unreadNotifications.length;
+  const visibleNotifications =
+    showAllNotifications
+      ? notifications
+      : notifications.slice(
+          0,
+          3
+        );
 
-  function StatCard({
+  function SummaryItem({
     value,
     label
   }) {
     return (
       <div
-        className="card"
         style={{
-          padding: "16px",
-          textAlign: "center"
+          minWidth: "95px"
         }}
       >
-        <div
+        <strong
           style={{
-            fontSize: "30px",
-            fontWeight: 800,
-            lineHeight: 1
+            fontSize: "22px"
           }}
         >
           {value}
-        </div>
+        </strong>
 
         <div
           className="muted"
           style={{
-            marginTop: "7px"
+            fontSize: "13px",
+            marginTop: "2px"
           }}
         >
           {label}
@@ -1113,11 +1025,14 @@ export default function DashboardPage() {
   }
 
   function NotificationsSection() {
+    if (!notifications.length) {
+      return null;
+    }
+
     return (
       <section
         style={{
-          marginBottom:
-            "30px"
+          marginBottom: "28px"
         }}
       >
         <div
@@ -1126,11 +1041,10 @@ export default function DashboardPage() {
             justifyContent:
               "space-between",
             alignItems:
-              "flex-end",
-            gap: "12px",
+              "center",
+            gap: "10px",
             flexWrap: "wrap",
-            marginBottom:
-              "14px"
+            marginBottom: "12px"
           }}
         >
           <div>
@@ -1143,12 +1057,14 @@ export default function DashboardPage() {
                 marginBottom: 0
               }}
             >
-              Novosti za vas
+              Novosti
+              {unreadCount > 0
+                ? ` · ${unreadCount}`
+                : ""}
             </h2>
           </div>
 
-          {unreadCount >
-            0 && (
+          {unreadCount > 0 && (
             <button
               type="button"
               className="button secondary small"
@@ -1163,221 +1079,156 @@ export default function DashboardPage() {
               {notificationLoading ===
               "all"
                 ? "Spremam..."
-                : "Označi sve kao pročitano"}
+                : "Sve pročitano"}
             </button>
           )}
         </div>
 
-        {unreadCount >
-          0 && (
-          <div
-            className="card"
-            style={{
-              padding: "14px",
-              marginBottom:
-                "12px"
-            }}
-          >
-            <strong>
-              {unreadCount}{" "}
-              {unreadCount ===
-              1
-                ? "nova obavijest"
-                : "novih obavijesti"}
-            </strong>
+        <div
+          style={{
+            display: "grid",
+            gap: "8px"
+          }}
+        >
+          {visibleNotifications.map(
+            notification => (
+              <article
+                key={
+                  notification.id
+                }
+                className="card"
+                style={{
+                  padding: "12px",
+                  display: "flex",
+                  gap: "10px",
+                  alignItems:
+                    "flex-start"
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: "18px",
+                    lineHeight: 1.4
+                  }}
+                >
+                  {notificationIcon(
+                    notification.type
+                  )}
+                </div>
 
-            <p
-              className="muted"
-              style={{
-                margin:
-                  "5px 0 0"
-              }}
-            >
-              Ovdje se pojavljuju promjene vezane uz vaše poslove, interese i ocjene.
-            </p>
-          </div>
-        )}
-
-        {!notifications.length ? (
-          <div className="card">
-            <p
-              className="muted"
-              style={{
-                marginBottom: 0
-              }}
-            >
-              Trenutno nemate novih obavijesti.
-            </p>
-          </div>
-        ) : (
-          <div
-            style={{
-              display: "grid",
-              gap: "10px"
-            }}
-          >
-            {notifications
-              .slice(0, 10)
-              .map(
-                notification => (
-                  <article
-                    key={
-                      notification.id
-                    }
-                    className="card"
+                <div
+                  style={{
+                    flex: 1,
+                    minWidth: 0
+                  }}
+                >
+                  <div
                     style={{
-                      padding:
-                        "14px",
-
-                      border:
-                        notification.is_read
-                          ? "1px solid var(--border)"
-                          : "2px solid currentColor"
+                      display: "flex",
+                      justifyContent:
+                        "space-between",
+                      alignItems:
+                        "center",
+                      gap: "8px"
                     }}
                   >
-                    <div
+                    <strong>
+                      {notification.title}
+                    </strong>
+
+                    {!notification.is_read && (
+                      <span className="badge">
+                        Novo
+                      </span>
+                    )}
+                  </div>
+
+                  {notification.message && (
+                    <p
+                      className="muted"
                       style={{
-                        display:
-                          "flex",
-                        gap: "12px",
-                        alignItems:
-                          "flex-start"
+                        margin:
+                          "4px 0"
                       }}
                     >
-                      <div
-                        style={{
-                          width: "40px",
-                          height: "40px",
-                          flexShrink: 0,
-                          borderRadius:
-                            "12px",
-                          background:
-                            "#f2f4f7",
-                          display:
-                            "flex",
-                          alignItems:
-                            "center",
-                          justifyContent:
-                            "center",
-                          fontSize:
-                            "20px"
-                        }}
+                      {notification.message}
+                    </p>
+                  )}
+
+                  <small className="muted">
+                    {formatDateTime(
+                      notification.created_at
+                    )}
+                  </small>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "7px",
+                      flexWrap: "wrap",
+                      marginTop: "8px"
+                    }}
+                  >
+                    {notification.href && (
+                      <button
+                        type="button"
+                        className="button small"
+                        disabled={
+                          notificationLoading ===
+                          notification.id
+                        }
+                        onClick={() =>
+                          openNotification(
+                            notification
+                          )
+                        }
                       >
-                        {notificationIcon(
-                          notification.type
-                        )}
-                      </div>
+                        Otvori
+                      </button>
+                    )}
 
-                      <div
-                        style={{
-                          flex: 1,
-                          minWidth: 0
-                        }}
+                    {!notification.is_read && (
+                      <button
+                        type="button"
+                        className="button secondary small"
+                        disabled={
+                          notificationLoading ===
+                          notification.id
+                        }
+                        onClick={() =>
+                          markNotificationRead(
+                            notification.id
+                          )
+                        }
                       >
-                        <div
-                          style={{
-                            display:
-                              "flex",
-                            justifyContent:
-                              "space-between",
-                            gap:
-                              "10px",
-                            flexWrap:
-                              "wrap"
-                          }}
-                        >
-                          <strong>
-                            {
-                              notification.title
-                            }
-                          </strong>
+                        Pročitano
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </article>
+            )
+          )}
+        </div>
 
-                          {!notification.is_read && (
-                            <span className="badge">
-                              Novo
-                            </span>
-                          )}
-                        </div>
-
-                        {notification.message && (
-                          <p
-                            className="muted"
-                            style={{
-                              margin:
-                                "6px 0"
-                            }}
-                          >
-                            {
-                              notification.message
-                            }
-                          </p>
-                        )}
-
-                        <small className="muted">
-                          {formatDateTime(
-                            notification.created_at
-                          )}
-                        </small>
-
-                        <div
-                          style={{
-                            display:
-                              "flex",
-                            gap:
-                              "8px",
-                            flexWrap:
-                              "wrap",
-                            marginTop:
-                              "12px"
-                          }}
-                        >
-                          {notification.href && (
-                            <button
-                              type="button"
-                              className="button small"
-                              disabled={
-                                notificationLoading ===
-                                notification.id
-                              }
-                              onClick={() =>
-                                openNotification(
-                                  notification
-                                )
-                              }
-                            >
-                              {notificationActionLabel(
-                                notification.type
-                              )}
-                            </button>
-                          )}
-
-                          {!notification.is_read && (
-                            <button
-                              type="button"
-                              className="button secondary small"
-                              disabled={
-                                notificationLoading ===
-                                notification.id
-                              }
-                              onClick={() =>
-                                markNotificationRead(
-                                  notification.id
-                                )
-                              }
-                            >
-                              {notificationLoading ===
-                              notification.id
-                                ? "Spremam..."
-                                : "Pročitano"}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </article>
-                )
-              )}
-          </div>
+        {notifications.length > 3 && (
+          <button
+            type="button"
+            className="button secondary small"
+            style={{
+              marginTop: "10px"
+            }}
+            onClick={() =>
+              setShowAllNotifications(
+                current =>
+                  !current
+              )
+            }
+          >
+            {showAllNotifications
+              ? "Prikaži manje"
+              : `Prikaži sve (${notifications.length})`}
+          </button>
         )}
       </section>
     );
@@ -1403,8 +1254,7 @@ export default function DashboardPage() {
       <article
         className="card"
         style={{
-          display: "grid",
-          gap: "12px"
+          padding: "14px"
         }}
       >
         <div
@@ -1414,120 +1264,68 @@ export default function DashboardPage() {
               "space-between",
             gap: "10px",
             alignItems:
-              "flex-start",
-            flexWrap: "wrap"
+              "flex-start"
           }}
         >
           <div>
             <div
               style={{
                 display: "flex",
-                gap: "7px",
-                flexWrap: "wrap",
-                marginBottom: "7px"
+                gap: "6px",
+                alignItems:
+                  "center",
+                flexWrap: "wrap"
               }}
             >
-              <span className="badge">
-                ★ Spremljen
-              </span>
+              <h3
+                style={{
+                  margin: 0
+                }}
+              >
+                {pro.company_name ||
+                  "Majstor"}
+              </h3>
 
               {pro.verified && (
                 <span className="badge">
-                  ✓ Verificirani
+                  ✓
                 </span>
               )}
             </div>
 
-            <h3
-              style={{
-                margin: "0 0 5px"
-              }}
-            >
-              {pro.company_name ||
-                "Majstor"}
-            </h3>
-
             <p
               className="muted"
               style={{
-                margin: 0
+                margin:
+                  "5px 0 0"
               }}
             >
-              📍 {favoriteLocationText(
+              {favoriteLocationText(
                 pro
               )}
             </p>
           </div>
 
-          <div
-            style={{
-              textAlign: "right"
-            }}
-          >
-            {reviewCount > 0 ? (
-              <>
-                <div
-                  style={{
-                    fontSize: "20px",
-                    lineHeight: 1
-                  }}
-                >
-                  {renderStars(
-                    average
-                  )}
-                </div>
-
-                <small className="muted">
-                  {average.toFixed(1)} · {reviewCount} recenzija
-                </small>
-              </>
-            ) : (
-              <small className="muted">
-                Još nema ocjena
-              </small>
-            )}
-          </div>
+          <small>
+            {reviewCount
+              ? `${average.toFixed(1)} ★`
+              : "Bez ocjena"}
+          </small>
         </div>
-
-        {Array.isArray(
-          pro.categories
-        ) &&
-          pro.categories.length >
-            0 && (
-            <div
-              style={{
-                display: "flex",
-                gap: "7px",
-                flexWrap: "wrap"
-              }}
-            >
-              {pro.categories
-                .slice(0, 3)
-                .map(
-                  category => (
-                    <span
-                      className="badge"
-                      key={category}
-                    >
-                      {category}
-                    </span>
-                  )
-                )}
-            </div>
-          )}
 
         <div
           style={{
             display: "flex",
             gap: "8px",
-            flexWrap: "wrap"
+            flexWrap: "wrap",
+            marginTop: "12px"
           }}
         >
           <Link
             href={`/majstor/${pro.user_id}`}
             className="button small"
           >
-            Pogledaj profil
+            Profil
           </Link>
 
           <button
@@ -1556,9 +1354,6 @@ export default function DashboardPage() {
   function CustomerJobCard({
     job
   }) {
-    const isOpen =
-      job.status === "open";
-
     const isAssigned =
       job.status ===
       "assigned";
@@ -1571,8 +1366,7 @@ export default function DashboardPage() {
       <article
         className="card"
         style={{
-          marginBottom:
-            "16px"
+          padding: "14px"
         }}
       >
         <div
@@ -1591,203 +1385,104 @@ export default function DashboardPage() {
           </span>
 
           <span className="badge">
-            {statusBadge(
+            {statusLabel(
               job.status
             )}
           </span>
         </div>
 
-        <h3>
+        <h3
+          style={{
+            marginBottom: "6px"
+          }}
+        >
           {job.city}
-
           {job.zip
             ? ` · ${job.zip}`
             : ""}
         </h3>
 
-        <p>
+        <p
+          style={{
+            marginTop: 0
+          }}
+        >
           {job.description}
         </p>
 
-        {isOpen && (
-          <div
-            style={{
-              padding: "12px",
-              borderRadius:
-                "12px",
-              background:
-                "#f7f8fa",
-              marginBottom:
-                "14px"
-            }}
-          >
-            <strong>
-              Posao je otvoren
-            </strong>
-
-            <p
-              className="muted"
-              style={{
-                margin:
-                  "5px 0 0"
-              }}
-            >
-              Majstori još mogu iskazati interes za ovaj posao.
-            </p>
-          </div>
-        )}
-
-        {isAssigned &&
-          job.selected_pro_id && (
-            <div
-              style={{
-                padding: "12px",
-                borderRadius:
-                  "12px",
-                background:
-                  "#f7f8fa",
-                marginBottom:
-                  "14px"
-              }}
-            >
-              <strong>
-                Posao je u tijeku
-              </strong>
-
-              <p
-                className="muted"
-                style={{
-                  margin:
-                    "5px 0 0"
-                }}
-              >
-                Majstor je odabran. Kada posao bude gotov, označite ga kao završen.
-              </p>
-            </div>
+        <small className="muted">
+          {formatDate(
+            job.created_at
           )}
-
-        {isCompleted &&
-          job.selected_pro_id && (
-            <div
-              style={{
-                padding: "12px",
-                borderRadius:
-                  "12px",
-                background:
-                  "#f7f8fa",
-                marginBottom:
-                  "14px"
-              }}
-            >
-              <strong>
-                Posao je završen
-              </strong>
-
-              <p
-                className="muted"
-                style={{
-                  margin:
-                    "5px 0 0"
-                }}
-              >
-                Sada možete ocijeniti odabranog majstora.
-              </p>
-            </div>
-          )}
+        </small>
 
         <div
-          className="rowBetween"
           style={{
-            gap: "12px",
-            flexWrap: "wrap"
+            display: "flex",
+            gap: "8px",
+            flexWrap: "wrap",
+            marginTop: "12px"
           }}
         >
-          <div>
-            <small>
-              Status:{" "}
-              <strong>
-                {statusLabel(
-                  job.status
-                )}
-              </strong>
-            </small>
+          {job.status ===
+            "open" && (
+            <Link
+              href="/jobs"
+              className="button small"
+            >
+              Otvori
+            </Link>
+          )}
 
-            <br />
+          {isAssigned &&
+            job.selected_pro_id && (
+              <>
+                <Link
+                  href={`/majstor/${job.selected_pro_id}`}
+                  className="button secondary small"
+                >
+                  Profil
+                </Link>
 
-            <small>
-              Objavljeno:{" "}
-              {formatDate(
-                job.created_at
-              )}
-            </small>
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              gap: "8px",
-              flexWrap: "wrap"
-            }}
-          >
-            {isOpen && (
-              <Link
-                href="/jobs"
-                className="button small"
-              >
-                Otvori posao
-              </Link>
+                <button
+                  type="button"
+                  className="button small"
+                  disabled={
+                    actionLoading ===
+                    job.id
+                  }
+                  onClick={() =>
+                    completeJob(
+                      job.id
+                    )
+                  }
+                >
+                  {actionLoading ===
+                  job.id
+                    ? "Spremam..."
+                    : "Završi posao"}
+                </button>
+              </>
             )}
 
-            {isAssigned &&
-              job.selected_pro_id && (
-                <>
-                  <Link
-                    href={`/majstor/${job.selected_pro_id}`}
-                    className="button secondary small"
-                  >
-                    Profil majstora
-                  </Link>
+          {isCompleted &&
+            job.selected_pro_id && (
+              <>
+                <Link
+                  href={`/majstor/${job.selected_pro_id}#ocijeni`}
+                  className="button small"
+                >
+                  Ocijeni
+                </Link>
 
-                  <button
-                    type="button"
-                    className="button small"
-                    disabled={
-                      actionLoading ===
-                      job.id
-                    }
-                    onClick={() =>
-                      completeJob(
-                        job.id
-                      )
-                    }
-                  >
-                    {actionLoading ===
-                    job.id
-                      ? "Spremanje..."
-                      : "Završi posao"}
-                  </button>
-                </>
-              )}
-
-            {isCompleted &&
-              job.selected_pro_id && (
-                <>
-                  <Link
-                    href={`/majstor/${job.selected_pro_id}#ocijeni`}
-                    className="button small"
-                  >
-                    Ocijeni majstora
-                  </Link>
-
-                  <Link
-                    href={`/majstor/${job.selected_pro_id}`}
-                    className="button secondary small"
-                  >
-                    Profil majstora
-                  </Link>
-                </>
-              )}
-          </div>
+                <Link
+                  href={`/majstor/${job.selected_pro_id}`}
+                  className="button secondary small"
+                >
+                  Profil
+                </Link>
+              </>
+            )}
         </div>
       </article>
     );
@@ -1804,16 +1499,11 @@ export default function DashboardPage() {
     const job =
       interest.job;
 
-    const isSelected =
-      job.selected_pro_id ===
-      user?.id;
-
     return (
       <article
         className="card"
         style={{
-          marginBottom:
-            "16px"
+          padding: "14px"
         }}
       >
         <div
@@ -1832,231 +1522,92 @@ export default function DashboardPage() {
           </span>
 
           <span className="badge">
-            {statusBadge(
+            {statusLabel(
               job.status
             )}
           </span>
         </div>
 
-        <h3>
+        <h3
+          style={{
+            marginBottom: "6px"
+          }}
+        >
           {job.city}
-
           {job.zip
             ? ` · ${job.zip}`
             : ""}
         </h3>
 
-        <p>
+        <p
+          style={{
+            marginTop: 0
+          }}
+        >
           {job.description}
         </p>
 
-        {mode === "open" && (
-          <div
-            style={{
-              padding: "12px",
-              borderRadius:
-                "12px",
-              background:
-                "#f7f8fa",
-              marginBottom:
-                "14px"
-            }}
-          >
-            <strong>
-              Interes je poslan
-            </strong>
-
-            <p
-              className="muted"
-              style={{
-                margin:
-                  "5px 0 0"
-              }}
-            >
-              Naručitelj još nije odabrao majstora.
-            </p>
-          </div>
+        {mode === "assigned" && (
+          <strong>
+            ✓ Odabrani ste za ovaj posao
+          </strong>
         )}
 
-        {mode === "assigned" &&
-          isSelected && (
-            <div
-              style={{
-                padding: "12px",
-                borderRadius:
-                  "12px",
-                background:
-                  "#f7f8fa",
-                marginBottom:
-                  "14px"
-              }}
-            >
-              <strong>
-                Odabrani ste za posao
-              </strong>
-
-              <p
-                className="muted"
-                style={{
-                  margin:
-                    "5px 0 0"
-                }}
-              >
-                Posao je u tijeku. Naručitelj će ga označiti kao završen kada radovi budu gotovi.
-              </p>
-            </div>
-          )}
-
-        {mode === "completed" &&
-          isSelected && (
-            <div
-              style={{
-                padding: "12px",
-                borderRadius:
-                  "12px",
-                background:
-                  "#f7f8fa",
-                marginBottom:
-                  "14px"
-              }}
-            >
-              <strong>
-                Vi ste bili odabrani majstor
-              </strong>
-
-              <p
-                className="muted"
-                style={{
-                  margin:
-                    "5px 0 0"
-                }}
-              >
-                Naručitelj je označio ovaj posao kao završen.
-              </p>
-            </div>
-          )}
-
-        {mode ===
-          "not-selected" && (
-          <div
-            style={{
-              padding: "12px",
-              borderRadius:
-                "12px",
-              background:
-                "#f7f8fa",
-              marginBottom:
-                "14px"
-            }}
-          >
-            <strong>
-              Odabran je drugi majstor
-            </strong>
-
-            <p
-              className="muted"
-              style={{
-                margin:
-                  "5px 0 0"
-              }}
-            >
-              Naručitelj je za ovaj posao odabrao drugog majstora.
-            </p>
-          </div>
+        {mode === "not-selected" && (
+          <p className="muted">
+            Odabran je drugi majstor.
+          </p>
         )}
 
         {interest.message && (
-          <div
+          <p
+            className="muted"
             style={{
-              padding: "14px",
-              background:
-                "#f7f8fa",
-              borderRadius:
-                "12px"
+              marginBottom: 0
             }}
           >
-            <strong>
-              Moja poruka
-            </strong>
-
-            <p
-              style={{
-                margin:
-                  "6px 0 0"
-              }}
-            >
-              {interest.message}
-            </p>
-          </div>
+            Vaša poruka:{" "}
+            {interest.message}
+          </p>
         )}
 
         <div
-          className="rowBetween"
           style={{
-            marginTop: "14px",
-            gap: "12px",
-            flexWrap: "wrap"
+            display: "flex",
+            justifyContent:
+              "space-between",
+            gap: "10px",
+            alignItems:
+              "center",
+            flexWrap: "wrap",
+            marginTop: "12px"
           }}
         >
-          <div>
-            <small>
-              Status posla:{" "}
-              <strong>
-                {statusLabel(
-                  job.status
-                )}
-              </strong>
-            </small>
-
-            <br />
-
-            <small>
-              Interes poslan:{" "}
-              {formatDate(
-                interest.created_at
-              )}
-            </small>
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              gap: "8px",
-              flexWrap: "wrap"
-            }}
-          >
-            {mode === "open" && (
-              <Link
-                href="/jobs"
-                className="button small"
-              >
-                Otvori poslove
-              </Link>
+          <small className="muted">
+            {formatDate(
+              interest.created_at
             )}
+          </small>
 
-            {mode ===
-              "completed" &&
-              user?.id && (
-                <Link
-                  href={`/majstor/${user.id}`}
-                  className="button secondary small"
-                >
-                  Pogledaj ocjene
-                </Link>
-              )}
-          </div>
+          {mode === "open" && (
+            <Link
+              href="/jobs"
+              className="button small"
+            >
+              Poslovi
+            </Link>
+          )}
         </div>
       </article>
     );
   }
-
   if (!supabase) {
     return (
       <main className="section">
         <div className="container">
           <div className="card">
             <h1>
-              Pregled
+              Moj pregled
             </h1>
 
             <p>
@@ -2104,10 +1655,16 @@ export default function DashboardPage() {
             </h1>
 
             <p>
-              Za pregled svojih poslova morate se prvo prijaviti.
+              Za pregled svojih poslova prvo se prijavite.
             </p>
 
-            <div className="actions">
+            <div
+              style={{
+                display: "flex",
+                gap: "8px",
+                flexWrap: "wrap"
+              }}
+            >
               <Link
                 href="/login"
                 className="button"
@@ -2131,94 +1688,159 @@ export default function DashboardPage() {
   return (
     <main className="section">
       <div className="container">
-        <div
+        <section
           className="card"
           style={{
-            marginBottom:
-              "20px"
+            marginBottom: "24px",
+            padding: "18px"
           }}
         >
           <span className="eyebrow">
             MOJMEŠTAR
           </span>
 
-          <h1>
+          <h1
+            style={{
+              marginBottom: "6px"
+            }}
+          >
             Moj pregled
           </h1>
 
-          <p className="muted">
+          <p
+            className="muted"
+            style={{
+              marginTop: 0,
+              marginBottom: "14px"
+            }}
+          >
+            {profile?.role === "pro"
+              ? "Majstor"
+              : "Naručitelj"}
+            {" · "}
             {user.email}
           </p>
 
-          <p>
-            Vrsta računa:{" "}
-            <strong>
-              {profile?.role ===
-              "pro"
-                ? "Majstor"
-                : "Naručitelj"}
-            </strong>
-          </p>
-
-          {unreadCount >
-            0 && (
+          {profile?.role ===
+            "customer" && (
             <div
               style={{
-                padding:
-                  "12px",
-                borderRadius:
-                  "12px",
-                background:
-                  "#f7f8fa",
-                marginBottom:
-                  "14px"
+                display: "flex",
+                gap: "22px",
+                flexWrap: "wrap",
+                marginBottom: "16px"
               }}
             >
-              <strong>
-                🔔 Imate{" "}
-                {unreadCount}{" "}
-                {unreadCount ===
-                1
-                  ? "novu obavijest"
-                  : "novih obavijesti"}
-              </strong>
+              <SummaryItem
+                value={
+                  openJobs.length
+                }
+                label="Otvoreni"
+              />
+
+              <SummaryItem
+                value={
+                  assignedJobs.length
+                }
+                label="U tijeku"
+              />
+
+              <SummaryItem
+                value={
+                  favoritePros.length
+                }
+                label="Spremljeni"
+              />
+
+              {unreadCount > 0 && (
+                <SummaryItem
+                  value={
+                    unreadCount
+                  }
+                  label="Novo"
+                />
+              )}
             </div>
           )}
 
-          <div className="actions">
+          {profile?.role ===
+            "pro" && (
+            <div
+              style={{
+                display: "flex",
+                gap: "22px",
+                flexWrap: "wrap",
+                marginBottom: "16px"
+              }}
+            >
+              <SummaryItem
+                value={
+                  openInterests.length
+                }
+                label="Interesi"
+              />
+
+              <SummaryItem
+                value={
+                  assignedToMeInterests.length
+                }
+                label="U tijeku"
+              />
+
+              <SummaryItem
+                value={
+                  proReviews.length
+                    ? averageRating.toFixed(
+                        1
+                      )
+                    : "–"
+                }
+                label="Ocjena"
+              />
+
+              {unreadCount > 0 && (
+                <SummaryItem
+                  value={
+                    unreadCount
+                  }
+                  label="Novo"
+                />
+              )}
+            </div>
+          )}
+
+          <div
+            style={{
+              display: "flex",
+              gap: "8px",
+              flexWrap: "wrap"
+            }}
+          >
+            <Link
+              href="/jobs"
+              className="button"
+            >
+              {profile?.role === "pro"
+                ? "Pronađi posao"
+                : "Poslovi"}
+            </Link>
+
+            {profile?.role ===
+              "customer" && (
+              <Link
+                href="/majstori"
+                className="button secondary"
+              >
+                Pronađi majstora
+              </Link>
+            )}
+
             <Link
               href="/profile"
               className="button secondary"
             >
               Uredi profil
             </Link>
-
-            <Link
-              href="/jobs"
-              className="button"
-            >
-              Poslovi
-            </Link>
-
-            {profile?.role ===
-              "customer" && (
-              <Link
-                href="/favoriti"
-                className="button secondary"
-              >
-                Spremljeni majstori
-              </Link>
-            )}
-
-            <button
-              type="button"
-              className="button secondary"
-              onClick={
-                loadDashboard
-              }
-            >
-              Osvježi
-            </button>
 
             {profile?.role ===
               "pro" &&
@@ -2235,75 +1857,25 @@ export default function DashboardPage() {
           {message && (
             <div
               style={{
-                marginTop:
-                  "16px",
-                padding:
-                  "12px",
-                borderRadius:
-                  "12px",
-                background:
-                  "#f7f8fa"
+                marginTop: "14px",
+                padding: "10px 12px",
+                borderRadius: "12px",
+                background: "#f7f8fa"
               }}
             >
               {message}
             </div>
           )}
-        </div>
+        </section>
 
         <NotificationsSection />
 
         {profile?.role ===
           "customer" && (
           <>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns:
-                  "repeat(auto-fit, minmax(140px, 1fr))",
-                gap: "12px",
-                marginBottom:
-                  "28px"
-              }}
-            >
-              <StatCard
-                value={
-                  openJobs.length
-                }
-                label="Otvoreni poslovi"
-              />
-
-              <StatCard
-                value={
-                  assignedJobs.length
-                }
-                label="Poslovi u tijeku"
-              />
-
-              <StatCard
-                value={
-                  completedJobs.length
-                }
-                label="Završeni poslovi"
-              />
-
-              <StatCard
-                value={
-                  favoritePros.length
-                }
-                label="Spremljeni majstori"
-              />
-
-              <StatCard
-                value={
-                  unreadCount
-                }
-                label="Nove obavijesti"
-              />
-            </div>
-
             <section
               style={{
-                marginBottom: "30px"
+                marginBottom: "28px"
               }}
             >
               <div
@@ -2311,10 +1883,115 @@ export default function DashboardPage() {
                   display: "flex",
                   justifyContent:
                     "space-between",
-                  alignItems: "flex-end",
-                  gap: "12px",
+                  alignItems:
+                    "center",
+                  gap: "10px",
                   flexWrap: "wrap",
-                  marginBottom: "14px"
+                  marginBottom: "12px"
+                }}
+              >
+                <div>
+                  <span className="eyebrow">
+                    Poslovi
+                  </span>
+
+                  <h2
+                    style={{
+                      marginBottom: 0
+                    }}
+                  >
+                    Aktivno
+                  </h2>
+                </div>
+
+                <Link
+                  href="/jobs"
+                  className="button secondary small"
+                >
+                  Svi poslovi
+                </Link>
+              </div>
+
+              {assignedJobs.length >
+              0 && (
+                <div
+                  style={{
+                    display: "grid",
+                    gap: "10px",
+                    marginBottom: "16px"
+                  }}
+                >
+                  {assignedJobs.map(
+                    job => (
+                      <CustomerJobCard
+                        key={
+                          job.id
+                        }
+                        job={job}
+                      />
+                    )
+                  )}
+                </div>
+              )}
+
+              {openJobs.length >
+              0 ? (
+                <div
+                  style={{
+                    display: "grid",
+                    gap: "10px"
+                  }}
+                >
+                  {openJobs.map(
+                    job => (
+                      <CustomerJobCard
+                        key={
+                          job.id
+                        }
+                        job={job}
+                      />
+                    )
+                  )}
+                </div>
+              ) : (
+                assignedJobs.length ===
+                  0 && (
+                  <div className="card">
+                    <p
+                      className="muted"
+                      style={{
+                        marginTop: 0
+                      }}
+                    >
+                      Trenutno nemate aktivnih poslova.
+                    </p>
+
+                    <Link
+                      href="/jobs"
+                      className="button"
+                    >
+                      Objavi posao
+                    </Link>
+                  </div>
+                )
+              )}
+            </section>
+
+            <section
+              style={{
+                marginBottom: "28px"
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent:
+                    "space-between",
+                  alignItems:
+                    "center",
+                  gap: "10px",
+                  flexWrap: "wrap",
+                  marginBottom: "12px"
                 }}
               >
                 <div>
@@ -2324,46 +2001,19 @@ export default function DashboardPage() {
 
                   <h2
                     style={{
-                      marginBottom: "4px"
+                      marginBottom: 0
                     }}
                   >
                     Spremljeni majstori
                   </h2>
-
-                  <p
-                    className="muted"
-                    style={{
-                      margin: 0
-                    }}
-                  >
-                    Brzi pristup majstorima koje ste spremili.
-                  </p>
                 </div>
 
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "8px",
-                    flexWrap: "wrap"
-                  }}
+                <Link
+                  href="/favoriti"
+                  className="button secondary small"
                 >
-                  <Link
-                    href="/majstori"
-                    className="button secondary small"
-                  >
-                    Pronađi majstora
-                  </Link>
-
-                  {favoritePros.length >
-                    0 && (
-                    <Link
-                      href="/favoriti"
-                      className="button small"
-                    >
-                      Svi spremljeni
-                    </Link>
-                  )}
-                </div>
+                  Prikaži sve
+                </Link>
               </div>
 
               {favoritePros.length ? (
@@ -2371,12 +2021,12 @@ export default function DashboardPage() {
                   style={{
                     display: "grid",
                     gridTemplateColumns:
-                      "repeat(auto-fit, minmax(280px, 1fr))",
-                    gap: "14px"
+                      "repeat(auto-fit, minmax(260px, 1fr))",
+                    gap: "10px"
                   }}
                 >
                   {favoritePros
-                    .slice(0, 3)
+                    .slice(0, 2)
                     .map(
                       pro => (
                         <CustomerFavoriteCard
@@ -2393,7 +2043,7 @@ export default function DashboardPage() {
                   <p
                     className="muted"
                     style={{
-                      marginBottom: "12px"
+                      marginTop: 0
                     }}
                   >
                     Još nemate spremljenih majstora.
@@ -2409,290 +2059,149 @@ export default function DashboardPage() {
               )}
             </section>
 
-            <section>
-              <span className="eyebrow">
-                Za naručitelje
-              </span>
+            {completedJobs.length >
+              0 && (
+              <section>
+                <button
+                  type="button"
+                  className="button secondary"
+                  onClick={() =>
+                    setShowCompleted(
+                      current =>
+                        !current
+                    )
+                  }
+                >
+                  {showCompleted
+                    ? "Sakrij završene poslove"
+                    : `Završeni poslovi (${completedJobs.length})`}
+                </button>
 
-              <h2>
-                Otvoreni poslovi
-              </h2>
-
-              <div className="jobList">
-                {openJobs.map(
-                  job => (
-                    <CustomerJobCard
-                      key={
-                        job.id
-                      }
-                      job={
-                        job
-                      }
-                    />
-                  )
-                )}
-
-                {!openJobs.length && (
-                  <div className="card">
-                    <p className="muted">
-                      Trenutno nemate otvorenih poslova.
-                    </p>
-
-                    <Link
-                      href="/jobs"
-                      className="button"
-                    >
-                      Objavi posao
-                    </Link>
+                {showCompleted && (
+                  <div
+                    style={{
+                      display: "grid",
+                      gap: "10px",
+                      marginTop: "12px"
+                    }}
+                  >
+                    {completedJobs.map(
+                      job => (
+                        <CustomerJobCard
+                          key={
+                            job.id
+                          }
+                          job={job}
+                        />
+                      )
+                    )}
                   </div>
                 )}
-              </div>
-            </section>
-
-            <section
-              style={{
-                marginTop:
-                  "30px"
-              }}
-            >
-              <span className="eyebrow">
-                Aktivni radovi
-              </span>
-
-              <h2>
-                Poslovi u tijeku
-              </h2>
-
-              <div className="jobList">
-                {assignedJobs.map(
-                  job => (
-                    <CustomerJobCard
-                      key={
-                        job.id
-                      }
-                      job={
-                        job
-                      }
-                    />
-                  )
-                )}
-
-                {!assignedJobs.length && (
-                  <div className="card">
-                    <p className="muted">
-                      Trenutno nemate poslova u tijeku.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </section>
-
-            <section
-              style={{
-                marginTop:
-                  "30px"
-              }}
-            >
-              <span className="eyebrow">
-                Povijest poslova
-              </span>
-
-              <h2>
-                Završeni poslovi
-              </h2>
-
-              <div className="jobList">
-                {completedJobs.map(
-                  job => (
-                    <CustomerJobCard
-                      key={
-                        job.id
-                      }
-                      job={
-                        job
-                      }
-                    />
-                  )
-                )}
-
-                {!completedJobs.length && (
-                  <div className="card">
-                    <p className="muted">
-                      Još nemate završenih poslova.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </section>
+              </section>
+            )}
           </>
         )}
 
         {profile?.role ===
           "pro" && (
           <>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns:
-                  "repeat(auto-fit, minmax(140px, 1fr))",
-                gap: "12px",
-                marginBottom:
-                  "28px"
-              }}
-            >
-              <StatCard
-                value={
-                  openInterests.length
-                }
-                label="Aktivni interesi"
-              />
-
-              <StatCard
-                value={
-                  assignedToMeInterests.length
-                }
-                label="Poslovi u tijeku"
-              />
-
-              <StatCard
-                value={
-                  completedForMeInterests.length
-                }
-                label="Završeni poslovi"
-              />
-
-              <StatCard
-                value={
-                  proReviews.length
-                    ? averageRating.toFixed(
-                        1
-                      )
-                    : "–"
-                }
-                label="Prosječna ocjena"
-              />
-
-              <StatCard
-                value={
-                  proReviews.length
-                }
-                label="Recenzije"
-              />
-
-              <StatCard
-                value={
-                  unreadCount
-                }
-                label="Nove obavijesti"
-              />
-            </div>
-
             <section
               style={{
-                marginBottom:
-                  "30px"
+                marginBottom: "28px"
               }}
             >
-              <span className="eyebrow">
-                Moja reputacija
-              </span>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent:
+                    "space-between",
+                  alignItems:
+                    "center",
+                  gap: "10px",
+                  flexWrap: "wrap",
+                  marginBottom: "12px"
+                }}
+              >
+                <div>
+                  <span className="eyebrow">
+                    Poslovi
+                  </span>
 
-              <h2>
-                Ocjene naručitelja
-              </h2>
+                  <h2
+                    style={{
+                      marginBottom: 0
+                    }}
+                  >
+                    Aktivno
+                  </h2>
+                </div>
 
-              <div className="card">
-                {proReviews.length ? (
-                  <>
-                    <div
-                      style={{
-                        fontSize:
-                          "30px",
-                        lineHeight:
-                          1,
-                        marginBottom:
-                          "10px"
-                      }}
-                    >
-                      {renderStars(
-                        averageRating
-                      )}
-                    </div>
-
-                    <p
-                      style={{
-                        margin:
-                          "0 0 6px"
-                      }}
-                    >
-                      <strong>
-                        {averageRating.toFixed(
-                          1
-                        )}
-                        /5
-                      </strong>
-                    </p>
-
-                    <p className="muted">
-                      {proReviews.length} recenzija
-                    </p>
-
-                    <Link
-                      href={`/majstor/${user.id}`}
-                      className="button secondary"
-                    >
-                      Pogledaj javni profil i sve ocjene
-                    </Link>
-                  </>
-                ) : (
-                  <>
-                    <p>
-                      Još nemate ocjena.
-                    </p>
-
-                    <p className="muted">
-                      Nakon završenog posla naručitelj vas može ocijeniti.
-                    </p>
-
-                    <Link
-                      href={`/majstor/${user.id}`}
-                      className="button secondary"
-                    >
-                      Pogledaj javni profil
-                    </Link>
-                  </>
-                )}
+                <Link
+                  href="/jobs"
+                  className="button secondary small"
+                >
+                  Pronađi posao
+                </Link>
               </div>
-            </section>
 
-            <section>
-              <span className="eyebrow">
-                Za meštre
-              </span>
+              {assignedToMeInterests.length >
+              0 && (
+                <div
+                  style={{
+                    display: "grid",
+                    gap: "10px",
+                    marginBottom: "16px"
+                  }}
+                >
+                  {assignedToMeInterests.map(
+                    interest => (
+                      <ProInterestCard
+                        key={
+                          interest.id
+                        }
+                        interest={
+                          interest
+                        }
+                        mode="assigned"
+                      />
+                    )
+                  )}
+                </div>
+              )}
 
-              <h2>
-                Aktivni interesi
-              </h2>
-
-              <div className="jobList">
-                {openInterests.map(
-                  interest => (
-                    <ProInterestCard
-                      key={
-                        interest.id
-                      }
-                      interest={
-                        interest
-                      }
-                      mode="open"
-                    />
-                  )
-                )}
-
-                {!openInterests.length && (
+              {openInterests.length >
+              0 ? (
+                <div
+                  style={{
+                    display: "grid",
+                    gap: "10px"
+                  }}
+                >
+                  {openInterests.map(
+                    interest => (
+                      <ProInterestCard
+                        key={
+                          interest.id
+                        }
+                        interest={
+                          interest
+                        }
+                        mode="open"
+                      />
+                    )
+                  )}
+                </div>
+              ) : (
+                assignedToMeInterests.length ===
+                  0 && (
                   <div className="card">
-                    <p>
-                      Trenutno nemate aktivnih interesa.
+                    <p
+                      className="muted"
+                      style={{
+                        marginTop: 0
+                      }}
+                    >
+                      Trenutno nemate aktivnih interesa ili poslova.
                     </p>
 
                     <Link
@@ -2702,266 +2211,276 @@ export default function DashboardPage() {
                       Pronađi posao
                     </Link>
                   </div>
-                )}
-              </div>
+                )
+              )}
             </section>
 
             <section
               style={{
-                marginTop:
-                  "30px"
+                marginBottom: "28px"
               }}
             >
-              <span className="eyebrow">
-                Aktivni radovi
-              </span>
-
-              <h2>
-                Poslovi u tijeku
-              </h2>
-
-              <div className="jobList">
-                {assignedToMeInterests.map(
-                  interest => (
-                    <ProInterestCard
-                      key={
-                        interest.id
-                      }
-                      interest={
-                        interest
-                      }
-                      mode="assigned"
-                    />
-                  )
-                )}
-
-                {!assignedToMeInterests.length && (
-                  <div className="card">
-                    <p className="muted">
-                      Trenutno nemate poslova u tijeku.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </section>
-
-            <section
-              style={{
-                marginTop:
-                  "30px"
-              }}
-            >
-              <span className="eyebrow">
-                Povijest
-              </span>
-
-              <h2>
-                Završeni poslovi
-              </h2>
-
-              <div className="jobList">
-                {completedForMeInterests.map(
-                  interest => (
-                    <ProInterestCard
-                      key={
-                        interest.id
-                      }
-                      interest={
-                        interest
-                      }
-                      mode="completed"
-                    />
-                  )
-                )}
-
-                {!completedForMeInterests.length && (
-                  <div className="card">
-                    <p className="muted">
-                      Još nemate završenih poslova.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </section>
-
-            {proReviews.length >
-              0 && (
-              <section
+              <div
                 style={{
-                  marginTop:
-                    "30px"
+                  display: "flex",
+                  justifyContent:
+                    "space-between",
+                  alignItems:
+                    "center",
+                  gap: "10px",
+                  flexWrap: "wrap",
+                  marginBottom: "12px"
                 }}
               >
-                <span className="eyebrow">
-                  Moje ocjene
-                </span>
+                <div>
+                  <span className="eyebrow">
+                    Reputacija
+                  </span>
 
-                <h2>
-                  Posljednje recenzije
-                </h2>
-
-                <div
-                  style={{
-                    display:
-                      "grid",
-                    gap: "12px"
-                  }}
-                >
-                  {proReviews
-                    .slice(
-                      0,
-                      5
-                    )
-                    .map(
-                      review => (
-                        <article
-                          key={
-                            review.id
-                          }
-                          className="card"
-                        >
-                          <div
-                            style={{
-                              fontSize:
-                                "24px",
-                              lineHeight:
-                                1
-                            }}
-                          >
-                            {renderStars(
-                              review.rating
-                            )}
-                          </div>
-
-                          <p
-                            style={{
-                              margin:
-                                "10px 0 6px"
-                            }}
-                          >
-                            <strong>
-                              {
-                                review.rating
-                              }
-                              /5
-                            </strong>
-                          </p>
-
-                          {review.comment && (
-                            <p>
-                              {
-                                review.comment
-                              }
-                            </p>
-                          )}
-
-                          <small className="muted">
-                            {formatDate(
-                              review.created_at
-                            )}
-                          </small>
-                        </article>
-                      )
-                    )}
+                  <h2
+                    style={{
+                      marginBottom: 0
+                    }}
+                  >
+                    Ocjene
+                  </h2>
                 </div>
 
-                <div
-                  style={{
-                    marginTop:
-                      "14px"
-                  }}
-                >
+                {user?.id && (
                   <Link
                     href={`/majstor/${user.id}`}
-                    className="button secondary"
+                    className="button secondary small"
                   >
-                    Sve recenzije
+                    Sve ocjene
                   </Link>
-                </div>
-              </section>
-            )}
+                )}
+              </div>
 
-            {notSelectedInterests.length >
-              0 && (
-              <section
+              <div
+                className="card"
                 style={{
-                  marginTop:
-                    "30px"
+                  padding: "16px"
                 }}
               >
-                <span className="eyebrow">
-                  Ostali interesi
-                </span>
-
-                <h2>
-                  Odabran je drugi majstor
-                </h2>
-
-                <div className="jobList">
-                  {notSelectedInterests.map(
-                    interest => (
-                      <ProInterestCard
-                        key={
-                          interest.id
-                        }
-                        interest={
-                          interest
-                        }
-                        mode="not-selected"
-                      />
-                    )
-                  )}
-                </div>
-              </section>
-            )}
-
-            {unavailableInterests.length >
-              0 && (
-              <section
-                style={{
-                  marginTop:
-                    "30px"
-                }}
-              >
-                <span className="eyebrow">
-                  Nedostupno
-                </span>
-
-                <h2>
-                  Izbrisani ili nedostupni poslovi
-                </h2>
-
-                <div className="jobList">
-                  {unavailableInterests.map(
-                    interest => (
-                      <article
-                        className="card"
-                        key={
-                          interest.id
-                        }
+                {proReviews.length ? (
+                  <>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems:
+                          "center",
+                        gap: "12px",
+                        flexWrap: "wrap"
+                      }}
+                    >
+                      <strong
                         style={{
-                          marginBottom:
-                            "16px"
+                          fontSize: "28px"
                         }}
                       >
-                        <h3>
-                          Posao više nije dostupan
-                        </h3>
+                        {averageRating.toFixed(
+                          1
+                        )}
+                      </strong>
 
-                        <p className="muted">
-                          Posao za koji ste iskazali interes je izbrisan ili više nije dostupan.
-                        </p>
+                      <span>
+                        {renderStars(
+                          averageRating
+                        )}
+                      </span>
 
-                        <small>
-                          Interes poslan:{" "}
+                      <span className="muted">
+                        {proReviews.length}{" "}
+                        recenzija
+                      </span>
+                    </div>
+
+                    {proReviews[0] && (
+                      <div
+                        style={{
+                          marginTop: "12px"
+                        }}
+                      >
+                        {proReviews[0]
+                          .comment && (
+                          <p
+                            style={{
+                              marginBottom:
+                                "5px"
+                            }}
+                          >
+                            {
+                              proReviews[0]
+                                .comment
+                            }
+                          </p>
+                        )}
+
+                        <small className="muted">
+                          Posljednja recenzija ·{" "}
                           {formatDate(
-                            interest.created_at
+                            proReviews[0]
+                              .created_at
                           )}
                         </small>
-                      </article>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p
+                    className="muted"
+                    style={{
+                      margin: 0
+                    }}
+                  >
+                    Još nemate ocjena.
+                  </p>
+                )}
+              </div>
+            </section>
+
+            {(completedForMeInterests.length >
+              0 ||
+              notSelectedInterests.length >
+                0 ||
+              unavailableInterests.length >
+                0) && (
+              <section>
+                <button
+                  type="button"
+                  className="button secondary"
+                  onClick={() =>
+                    setShowOldInterests(
+                      current =>
+                        !current
                     )
-                  )}
-                </div>
+                  }
+                >
+                  {showOldInterests
+                    ? "Sakrij povijest"
+                    : "Prikaži povijest"}
+                </button>
+
+                {showOldInterests && (
+                  <div
+                    style={{
+                      marginTop: "14px",
+                      display: "grid",
+                      gap: "18px"
+                    }}
+                  >
+                    {completedForMeInterests.length >
+                      0 && (
+                      <div>
+                        <h3>
+                          Završeni poslovi
+                        </h3>
+
+                        <div
+                          style={{
+                            display: "grid",
+                            gap: "10px"
+                          }}
+                        >
+                          {completedForMeInterests.map(
+                            interest => (
+                              <ProInterestCard
+                                key={
+                                  interest.id
+                                }
+                                interest={
+                                  interest
+                                }
+                                mode="completed"
+                              />
+                            )
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {notSelectedInterests.length >
+                      0 && (
+                      <div>
+                        <h3>
+                          Odabran drugi majstor
+                        </h3>
+
+                        <div
+                          style={{
+                            display: "grid",
+                            gap: "10px"
+                          }}
+                        >
+                          {notSelectedInterests.map(
+                            interest => (
+                              <ProInterestCard
+                                key={
+                                  interest.id
+                                }
+                                interest={
+                                  interest
+                                }
+                                mode="not-selected"
+                              />
+                            )
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {unavailableInterests.length >
+                      0 && (
+                      <div>
+                        <h3>
+                          Nedostupni poslovi
+                        </h3>
+
+                        <div
+                          style={{
+                            display: "grid",
+                            gap: "10px"
+                          }}
+                        >
+                          {unavailableInterests.map(
+                            interest => (
+                              <article
+                                key={
+                                  interest.id
+                                }
+                                className="card"
+                                style={{
+                                  padding:
+                                    "14px"
+                                }}
+                              >
+                                <strong>
+                                  Posao više nije dostupan
+                                </strong>
+
+                                <p
+                                  className="muted"
+                                  style={{
+                                    marginBottom:
+                                      "5px"
+                                  }}
+                                >
+                                  Posao je izbrisan ili više nije dostupan.
+                                </p>
+
+                                <small className="muted">
+                                  {formatDate(
+                                    interest.created_at
+                                  )}
+                                </small>
+                              </article>
+                            )
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </section>
             )}
           </>
