@@ -338,11 +338,7 @@ export default function MajstoriPage() {
       return "Još nema ocjena";
     }
 
-    return `${rating.toFixed(1)} · ${count} ${
-      count === 1
-        ? "recenzija"
-        : "recenzija"
-    }`;
+    return `${rating.toFixed(1)} · ${count} recenzija`;
   }
 
   function locationText(pro) {
@@ -519,18 +515,25 @@ export default function MajstoriPage() {
         pro.average_rating
       ) || 0;
 
-    const portfolioCount =
-      Array.isArray(
-        pro.portfolio_urls
-      )
-        ? pro.portfolio_urls.length
-        : 0;
-
-    const serviceCount =
+    const services =
       Array.isArray(
         pro.categories
       )
-        ? pro.categories.length
+        ? pro.categories.slice(
+            0,
+            3
+          )
+        : [];
+
+    const extraServices =
+      Array.isArray(
+        pro.categories
+      )
+        ? Math.max(
+            pro.categories.length -
+              services.length,
+            0
+          )
         : 0;
 
     return (
@@ -538,7 +541,7 @@ export default function MajstoriPage() {
         className="card"
         style={{
           display: "grid",
-          gap: "16px"
+          gap: "14px"
         }}
       >
         <div
@@ -561,19 +564,15 @@ export default function MajstoriPage() {
             <div
               style={{
                 display: "flex",
-                gap: "8px",
+                gap: "7px",
                 flexWrap: "wrap",
                 marginBottom:
-                  "8px"
+                  "7px"
               }}
             >
-              {pro.verified ? (
+              {pro.verified && (
                 <span className="badge">
-                  ✓ Verificirani majstor
-                </span>
-              ) : (
-                <span className="badge">
-                  Majstor
+                  ✓ Verificirani
                 </span>
               )}
 
@@ -587,7 +586,7 @@ export default function MajstoriPage() {
             <h3
               style={{
                 margin:
-                  "0 0 6px"
+                  "0 0 5px"
               }}
             >
               {pro.company_name ||
@@ -600,45 +599,48 @@ export default function MajstoriPage() {
                 margin: 0
               }}
             >
-              📍{" "}
               {locationText(
                 pro
               )}
             </p>
           </div>
 
-          {reviewCount >
-          0 ? (
-            <div
-              style={{
-                textAlign:
-                  "right"
-              }}
-            >
-              <div
-                style={{
-                  fontSize:
-                    "22px",
-                  lineHeight:
-                    1
-                }}
-              >
-                {renderStars(
-                  averageRating
-                )}
-              </div>
+          <div
+            style={{
+              textAlign:
+                "right",
+              minWidth:
+                "92px"
+            }}
+          >
+            {reviewCount >
+            0 ? (
+              <>
+                <div
+                  style={{
+                    fontSize:
+                      "18px",
+                    lineHeight:
+                      1
+                  }}
+                >
+                  {renderStars(
+                    averageRating
+                  )}
+                </div>
 
+                <small className="muted">
+                  {ratingText(
+                    pro
+                  )}
+                </small>
+              </>
+            ) : (
               <small className="muted">
-                {ratingText(
-                  pro
-                )}
+                Još nema ocjena
               </small>
-            </div>
-          ) : (
-            <small className="muted">
-              Još nema ocjena
-            </small>
-          )}
+            )}
+          </div>
         </div>
 
         {pro.bio && (
@@ -651,145 +653,46 @@ export default function MajstoriPage() {
           </p>
         )}
 
-        {Array.isArray(
-          pro.categories
-        ) &&
-          pro.categories.length >
-            0 && (
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: "7px"
-              }}
-            >
-              {pro.categories.map(
-                category => (
-                  <span
-                    key={
-                      category
-                    }
-                    className="badge"
-                  >
-                    {category}
-                  </span>
-                )
-              )}
-            </div>
-          )}
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns:
-              "repeat(3, minmax(0, 1fr))",
-            gap: "8px"
-          }}
-        >
+        {services.length >
+          0 && (
           <div
             style={{
-              padding:
-                "12px 8px",
-              background:
-                "#f7f8fa",
-              borderRadius:
-                "12px",
-              textAlign:
-                "center"
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "7px"
             }}
           >
-            <strong>
-              {reviewCount}
-            </strong>
+            {services.map(
+              category => (
+                <span
+                  key={
+                    category
+                  }
+                  className="badge"
+                >
+                  {category}
+                </span>
+              )
+            )}
 
-            <div
-              className="muted"
-              style={{
-                fontSize:
-                  "12px",
-                marginTop:
-                  "3px"
-              }}
-            >
-              Recenzije
-            </div>
+            {extraServices >
+              0 && (
+              <span className="muted">
+                +{extraServices}
+              </span>
+            )}
           </div>
-
-          <div
-            style={{
-              padding:
-                "12px 8px",
-              background:
-                "#f7f8fa",
-              borderRadius:
-                "12px",
-              textAlign:
-                "center"
-            }}
-          >
-            <strong>
-              {portfolioCount}
-            </strong>
-
-            <div
-              className="muted"
-              style={{
-                fontSize:
-                  "12px",
-                marginTop:
-                  "3px"
-              }}
-            >
-              Fotografije
-            </div>
-          </div>
-
-          <div
-            style={{
-              padding:
-                "12px 8px",
-              background:
-                "#f7f8fa",
-              borderRadius:
-                "12px",
-              textAlign:
-                "center"
-            }}
-          >
-            <strong>
-              {serviceCount}
-            </strong>
-
-            <div
-              className="muted"
-              style={{
-                fontSize:
-                  "12px",
-                marginTop:
-                  "3px"
-              }}
-            >
-              Usluge
-            </div>
-          </div>
-        </div>
+        )}
 
         {pro.service_radius_km !=
           null && (
-          <p
-            className="muted"
-            style={{
-              margin: 0
-            }}
-          >
+          <small className="muted">
             Radijus rada:{" "}
-            <strong>
-              {
-                pro.service_radius_km
-              }{" "}
-              km
-            </strong>
-          </p>
+            {
+              pro.service_radius_km
+            }{" "}
+            km
+          </small>
         )}
 
         <div
@@ -803,7 +706,7 @@ export default function MajstoriPage() {
             href={`/majstor/${pro.user_id}`}
             className="button"
           >
-            Pogledaj profil
+            Profil
           </Link>
 
           {currentProfile?.role ===
@@ -826,7 +729,7 @@ export default function MajstoriPage() {
                 ? "Spremam..."
                 : isFavorite
                   ? "★ Spremljen"
-                  : "☆ Spremi majstora"}
+                  : "☆ Spremi"}
             </button>
           )}
         </div>
@@ -873,14 +776,12 @@ export default function MajstoriPage() {
       </main>
     );
   }
-
   return (
     <main className="section">
       <div className="container">
         <div
           style={{
-            marginBottom:
-              "24px"
+            marginBottom: "22px"
           }}
         >
           <span className="eyebrow">
@@ -892,7 +793,7 @@ export default function MajstoriPage() {
           </h1>
 
           <p className="muted">
-            Pretražite majstore prema usluzi, lokaciji, ocjenama i statusu verifikacije.
+            Pronađite majstora prema usluzi, lokaciji i ocjenama.
           </p>
         </div>
 
@@ -900,9 +801,8 @@ export default function MajstoriPage() {
           <div
             className="card"
             style={{
-              padding: "14px",
-              marginBottom:
-                "18px"
+              padding: "12px",
+              marginBottom: "16px"
             }}
           >
             {message}
@@ -915,53 +815,39 @@ export default function MajstoriPage() {
             0 && (
             <section
               style={{
-                marginBottom:
-                  "34px"
+                marginBottom: "28px"
               }}
             >
-              <span className="eyebrow">
-                Favoriti
-              </span>
-
               <div
                 style={{
                   display: "flex",
-                  justifyContent:
-                    "space-between",
-                  alignItems:
-                    "flex-end",
+                  justifyContent: "space-between",
+                  alignItems: "center",
                   gap: "10px",
-                  flexWrap:
-                    "wrap",
-                  marginBottom:
-                    "14px"
+                  flexWrap: "wrap",
+                  marginBottom: "12px"
                 }}
               >
                 <div>
+                  <span className="eyebrow">
+                    Favoriti
+                  </span>
+
                   <h2
                     style={{
-                      marginBottom:
-                        "4px"
+                      marginBottom: 0
                     }}
                   >
                     Spremljeni majstori
                   </h2>
-
-                  <p
-                    className="muted"
-                    style={{
-                      margin: 0
-                    }}
-                  >
-                    Majstori koje ste spremili za kasnije.
-                  </p>
                 </div>
 
-                <span className="badge">
-                  {
-                    favoritePros.length
-                  }
-                </span>
+                <Link
+                  href="/favoriti"
+                  className="button secondary small"
+                >
+                  Prikaži sve
+                </Link>
               </div>
 
               <div
@@ -969,65 +855,74 @@ export default function MajstoriPage() {
                   display: "grid",
                   gridTemplateColumns:
                     "repeat(auto-fit, minmax(280px, 1fr))",
-                  gap: "14px"
+                  gap: "12px"
                 }}
               >
-                {favoritePros.map(
-                  pro => (
-                    <MajstorCard
-                      key={
-                        pro.user_id
-                      }
-                      pro={pro}
-                      savedSection
-                    />
-                  )
-                )}
+                {favoritePros
+                  .slice(0, 3)
+                  .map(
+                    pro => (
+                      <MajstorCard
+                        key={
+                          pro.user_id
+                        }
+                        pro={pro}
+                        savedSection
+                      />
+                    )
+                  )}
               </div>
             </section>
           )}
 
         <section>
-          <span className="eyebrow">
-            Pretraga
-          </span>
+          <div
+            style={{
+              marginBottom: "14px"
+            }}
+          >
+            <span className="eyebrow">
+              Pretraga
+            </span>
 
-          <h2>
-            Svi majstori
-          </h2>
+            <h2>
+              Svi majstori
+            </h2>
+          </div>
 
           <div
             className="card"
             style={{
-              marginBottom:
-                "18px"
+              marginBottom: "16px",
+              padding: "14px"
             }}
           >
             <div
               style={{
                 display: "grid",
-                gap: "12px"
+                gap: "10px"
               }}
             >
-              <label>
-                Pretraži
+              <input
+                value={
+                  searchText
+                }
+                onChange={e =>
+                  setSearchText(
+                    e.target.value
+                  )
+                }
+                placeholder="Naziv, usluga ili lokacija"
+              />
 
-                <input
-                  value={
-                    searchText
-                  }
-                  onChange={e =>
-                    setSearchText(
-                      e.target.value
-                    )
-                  }
-                  placeholder="Naziv, usluga, lokacija ili poštanski broj"
-                />
-              </label>
-
-              <label>
-                Usluga
-
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(auto-fit, minmax(180px, 1fr))",
+                  gap: "10px"
+                }}
+              >
                 <select
                   value={
                     categoryFilter
@@ -1057,10 +952,6 @@ export default function MajstoriPage() {
                     )
                   )}
                 </select>
-              </label>
-
-              <label>
-                Sortiranje
 
                 <select
                   value={
@@ -1088,71 +979,71 @@ export default function MajstoriPage() {
                     Naziv A–Ž
                   </option>
                 </select>
-              </label>
+              </div>
 
-              <label
+              <div
                 style={{
                   display: "flex",
-                  alignItems:
-                    "center",
+                  justifyContent: "space-between",
+                  alignItems: "center",
                   gap: "10px",
-                  cursor:
-                    "pointer"
+                  flexWrap: "wrap"
                 }}
               >
-                <input
-                  type="checkbox"
-                  checked={
-                    onlyVerified
-                  }
-                  onChange={e =>
-                    setOnlyVerified(
-                      e.target.checked
-                    )
-                  }
+                <label
                   style={{
-                    width: "20px",
-                    height: "20px"
-                  }}
-                />
-
-                Samo verificirani majstori
-              </label>
-
-              {(searchText ||
-                categoryFilter ||
-                onlyVerified ||
-                sortMode !==
-                  "recommended") && (
-                <button
-                  type="button"
-                  className="button secondary"
-                  onClick={() => {
-                    setSearchText("");
-                    setCategoryFilter("");
-                    setOnlyVerified(false);
-                    setSortMode(
-                      "recommended"
-                    );
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    cursor: "pointer"
                   }}
                 >
-                  Poništi filtre
-                </button>
-              )}
+                  <input
+                    type="checkbox"
+                    checked={
+                      onlyVerified
+                    }
+                    onChange={e =>
+                      setOnlyVerified(
+                        e.target.checked
+                      )
+                    }
+                    style={{
+                      width: "18px",
+                      height: "18px"
+                    }}
+                  />
+
+                  Samo verificirani
+                </label>
+
+                {(searchText ||
+                  categoryFilter ||
+                  onlyVerified ||
+                  sortMode !==
+                    "recommended") && (
+                  <button
+                    type="button"
+                    className="button secondary small"
+                    onClick={
+                      resetFilters
+                    }
+                  >
+                    Poništi filtre
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
           <div
             style={{
               display: "flex",
-              justifyContent:
-                "space-between",
-              alignItems:
-                "center",
+              justifyContent: "space-between",
+              alignItems: "center",
               gap: "10px",
               flexWrap: "wrap",
-              marginBottom:
-                "14px"
+              marginBottom: "12px"
             }}
           >
             <p
@@ -1161,23 +1052,19 @@ export default function MajstoriPage() {
                 margin: 0
               }}
             >
-              Pronađeno:{" "}
-              <strong>
-                {
-                  visiblePros.length
-                }
-              </strong>
+              {visiblePros.length}{" "}
+              {visiblePros.length === 1
+                ? "majstor"
+                : "majstora"}
             </p>
 
             {!currentUser && (
-              <p
-                className="muted"
-                style={{
-                  margin: 0
-                }}
+              <Link
+                href="/login"
+                className="button secondary small"
               >
-                Za spremanje majstora potrebno je prijaviti se.
-              </p>
+                Prijavi se za spremanje
+              </Link>
             )}
           </div>
 
@@ -1187,7 +1074,7 @@ export default function MajstoriPage() {
                 display: "grid",
                 gridTemplateColumns:
                   "repeat(auto-fit, minmax(280px, 1fr))",
-                gap: "14px"
+                gap: "12px"
               }}
             >
               {visiblePros.map(
@@ -1210,8 +1097,7 @@ export default function MajstoriPage() {
               <p
                 className="muted"
                 style={{
-                  marginBottom:
-                    "12px"
+                  marginBottom: "12px"
                 }}
               >
                 Nema majstora koji odgovaraju odabranim kriterijima.
@@ -1220,16 +1106,11 @@ export default function MajstoriPage() {
               <button
                 type="button"
                 className="button secondary"
-                onClick={() => {
-                  setSearchText("");
-                  setCategoryFilter("");
-                  setOnlyVerified(false);
-                  setSortMode(
-                    "recommended"
-                  );
-                }}
+                onClick={
+                  resetFilters
+                }
               >
-                Prikaži sve majstore
+                Prikaži sve
               </button>
             </div>
           )}
@@ -1238,20 +1119,25 @@ export default function MajstoriPage() {
         <div
           className="card"
           style={{
-            marginTop:
-              "30px"
+            marginTop: "26px",
+            padding: "18px"
           }}
         >
-          <span className="eyebrow">
-            Trebate pomoć?
-          </span>
-
-          <h2>
-            Objavite posao
+          <h2
+            style={{
+              marginBottom: "6px"
+            }}
+          >
+            Ne želite sami tražiti?
           </h2>
 
-          <p className="muted">
-            Ako ne želite sami tražiti majstora, objavite posao i zainteresirani majstori mogu vam se javiti.
+          <p
+            className="muted"
+            style={{
+              marginTop: 0
+            }}
+          >
+            Objavite posao i zainteresirani majstori mogu vam se javiti.
           </p>
 
           <Link
