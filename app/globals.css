@@ -18,10 +18,13 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 body {
   margin: 0;
+  max-width: 100%;
+  overflow-x: hidden;
   background: var(--bg);
   color: var(--text);
   font-family: Arial, Helvetica, sans-serif;
@@ -76,6 +79,37 @@ img {
   white-space: nowrap;
 }
 
+.brandGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.roleBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.roleBadgeCustomer {
+  color: #174ea6;
+  background: #e8f0fe;
+  border: 1px solid #c6dafc;
+}
+
+.roleBadgePro {
+  color: #8a3b12;
+  background: #fff0e6;
+  border: 1px solid #ffd2b5;
+}
+
 .nav {
   display: flex;
   align-items: center;
@@ -93,6 +127,11 @@ img {
   grid-template-columns: 1.2fr 0.8fr;
   gap: 32px;
   align-items: start;
+}
+
+.jobsSingleColumn {
+  display: block;
+  width: 100%;
 }
 
 h1 {
@@ -350,16 +389,32 @@ small {
   .headerInner {
     min-height: 64px;
     gap: 10px;
+    flex-wrap: wrap;
+    padding: 10px 0;
   }
 
   .brand {
     font-size: 1.15rem;
   }
 
+  .brandGroup {
+    width: 100%;
+    justify-content: space-between;
+  }
+
   .nav {
     gap: 6px;
     font-size: 0.82rem;
-    margin-left: auto;
+    width: 100%;
+    margin-left: 0;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .nav::-webkit-scrollbar {
+    display: none;
   }
 
   .nav > a {

@@ -355,12 +355,28 @@ export default function Header() {
   return (
     <header className="siteHeader">
       <div className="container headerInner">
-        <Link
-          href="/"
-          className="brand"
-        >
-          MOJMEŠTAR
-        </Link>
+        <div className="brandGroup">
+          <Link
+            href="/"
+            className="brand"
+          >
+            MOJMEŠTAR
+          </Link>
+
+          {!loading && user && profile?.role && (
+            <span
+              className={`roleBadge ${
+                profile.role === "pro"
+                  ? "roleBadgePro"
+                  : "roleBadgeCustomer"
+              }`}
+            >
+              {profile.role === "pro"
+                ? "MAJSTOR"
+                : "KUPAC"}
+            </span>
+          )}
+        </div>
 
         <nav className="nav">
           <Link href="/jobs">
