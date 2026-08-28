@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
+import { dedupeNotifications } from "../../lib/notifications";
 
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
@@ -224,7 +225,9 @@ export default function DashboardPage() {
     }
 
     setNotifications(
-      data || []
+      dedupeNotifications(
+        data || []
+      )
     );
   }
 
@@ -243,6 +246,17 @@ export default function DashboardPage() {
     );
 
     try {
+      const notification =
+        notifications.find(
+          item =>
+            item.id === notificationId
+        );
+
+      const notificationIds =
+        notification?.duplicateIds?.length
+          ? notification.duplicateIds
+          : [notificationId];
+
       const {
         error
       } = await supabase
@@ -250,9 +264,9 @@ export default function DashboardPage() {
         .update({
           is_read: true
         })
-        .eq(
+        .in(
           "id",
-          notificationId
+          notificationIds
         );
 
       if (error) {
@@ -263,8 +277,9 @@ export default function DashboardPage() {
         current =>
           current.map(
             notification =>
-              notification.id ===
-              notificationId
+              notificationIds.includes(
+                notification.id
+              )
                 ? {
                     ...notification,
                     is_read: true
