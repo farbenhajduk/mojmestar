@@ -427,14 +427,9 @@ small {
     font-size: 0.82rem;
     width: 100%;
     margin-left: 0;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .nav::-webkit-scrollbar {
-    display: none;
+    flex-wrap: wrap;
+    overflow: visible;
+    justify-content: flex-start;
   }
 
   .nav > a {
@@ -451,6 +446,7 @@ small {
     padding: 9px 10px;
     font-size: 0.8rem;
     border-radius: 10px;
+    white-space: nowrap;
   }
 
   .stickyCard {
