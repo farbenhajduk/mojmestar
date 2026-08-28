@@ -1496,11 +1496,19 @@ export default function JobsPage() {
           </span>
 
           <h1>
-            Poslovi
+            {userProfile?.role === "pro"
+              ? "Poslovi za majstore"
+              : userProfile?.role === "customer"
+                ? "Moji poslovi"
+                : "Poslovi"}
           </h1>
 
           <p className="muted">
-            Objavite posao ili pronađite odgovarajući posao.
+            {userProfile?.role === "pro"
+              ? "Pronađite odgovarajući posao i pošaljite svoj interes."
+              : userProfile?.role === "customer"
+                ? "Objavite posao i pregledajte zainteresirane majstore."
+                : "Objavite posao ili pronađite odgovarajući posao."}
           </p>
         </div>
 
@@ -1540,7 +1548,14 @@ export default function JobsPage() {
           </div>
         )}
 
-        <div className="twoCol">
+        <div
+          className={
+            userProfile?.role === "pro"
+              ? "jobsSingleColumn"
+              : "twoCol"
+          }
+        >
+          {userProfile?.role !== "pro" && (
           <div className="card stickyCard">
             <span className="eyebrow">
               Za naručitelje
@@ -1550,12 +1565,6 @@ export default function JobsPage() {
               Objavi posao
             </h2>
 
-            {userProfile?.role ===
-            "pro" ? (
-              <p className="muted">
-                Majstorski račun ne može objavljivati poslove.
-              </p>
-            ) : (
               <form
                 onSubmit={
                   submit
@@ -1677,7 +1686,6 @@ export default function JobsPage() {
                     : "Objavi posao"}
                 </button>
               </form>
-            )}
 
             {message && (
               <div
@@ -1696,6 +1704,7 @@ export default function JobsPage() {
               </div>
             )}
           </div>
+          )}
 
           <div>
             <div
