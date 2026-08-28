@@ -4,7 +4,7 @@ import { useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 
 export default function RegisterPage() {
-  const [role, setRole] = useState("buyer");
+  const [role, setRole] = useState("customer");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
@@ -64,13 +64,35 @@ export default function RegisterPage() {
           <h2>Registracija</h2>
 
           <form className="form" onSubmit={handleRegister}>
-            <label>
-              Tip korisnika
-              <select value={role} onChange={(e) => setRole(e.target.value)}>
-                <option value="buyer">Kupac</option>
-                <option value="pro">Majstor</option>
-              </select>
-            </label>
+            <fieldset className="roleChooser">
+              <legend>
+                Kako želite koristiti MojMeštar?
+              </legend>
+
+              <button
+                type="button"
+                className={`roleOption roleOptionCustomer ${
+                  role === "customer" ? "roleOptionActive" : ""
+                }`}
+                aria-pressed={role === "customer"}
+                onClick={() => setRole("customer")}
+              >
+                <strong>🏠 Naručitelj</strong>
+                <span>Želim objaviti posao i pronaći majstora.</span>
+              </button>
+
+              <button
+                type="button"
+                className={`roleOption roleOptionPro ${
+                  role === "pro" ? "roleOptionActive" : ""
+                }`}
+                aria-pressed={role === "pro"}
+                onClick={() => setRole("pro")}
+              >
+                <strong>🛠️ Majstor</strong>
+                <span>Želim pronaći poslove i ponuditi svoje usluge.</span>
+              </button>
+            </fieldset>
 
             <label>
               E-mail
