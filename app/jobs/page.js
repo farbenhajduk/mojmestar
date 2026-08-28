@@ -36,21 +36,12 @@ export default function JobsPage() {
   const [closingJob, setClosingJob] = useState("");
   const [deletingJob, setDeletingJob] = useState("");
 
-  const supabaseUrl =
-    process.env.NEXT_PUBLIC_SUPABASE_URL;
-
-  const supabaseKey =
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   const supabase = useMemo(() => {
-    if (!supabaseUrl || !supabaseKey) {
-      return null;
-    }
-
-    return createBrowserClient(
-      supabaseUrl,
-      supabaseKey
-    );
+    if (!supabaseUrl || !supabaseKey) return null;
+    return createBrowserClient(supabaseUrl, supabaseKey);
   }, [supabaseUrl, supabaseKey]);
 
   useEffect(() => {
@@ -58,36 +49,23 @@ export default function JobsPage() {
   }, [supabase]);
 
   async function ensureProfile(authUser) {
-    if (!supabase) {
-      return null;
-    }
+    if (!supabase) return null;
 
-    const {
-      data: existing,
-      error: readError
-    } = await supabase
+    const { data: existing, error: readError } = await supabase
       .from("profiles")
       .select("id, role")
       .eq("id", authUser.id)
       .maybeSingle();
 
-    if (readError) {
-      throw readError;
-    }
-
-    if (existing) {
-      return existing;
-    }
+    if (readError) throw readError;
+    if (existing) return existing;
 
     const role =
       authUser.user_metadata?.role === "pro"
         ? "pro"
         : "customer";
 
-    const {
-      data: created,
-      error: createError
-    } = await supabase
+    const { data: created, error: createError } = await supabase
       .from("profiles")
       .insert({
         id: authUser.id,
@@ -96,50 +74,23 @@ export default function JobsPage() {
       .select("id, role")
       .single();
 
-    if (createError) {
-      throw createError;
-    }
+    if (createError) throw createError;
 
     return created;
   }
 
   function statusLabel(status) {
-    if (status === "open") {
-      return "Otvoren";
-    }
-
-    if (status === "assigned") {
-      return "U tijeku";
-    }
-
-    if (status === "completed") {
-      return "Završen";
-    }
+    if (status === "open") return "Otvoren";
+    if (status === "assigned") return "U tijeku";
+    if (status === "completed") return "Završen";
 
     return status || "Nepoznato";
   }
 
-  function statusDescription(status) {
-    if (status === "open") {
-      return "Majstori još mogu iskazati interes.";
-    }
-
-    if (status === "assigned") {
-      return "Majstor je odabran i posao je u tijeku.";
-    }
-
-    if (status === "completed") {
-      return "Posao je završen.";
-    }
-
-    return "";
-  }
-
   function renderStars(value) {
-    const rounded =
-      Math.round(
-        Number(value) || 0
-      );
+    const rounded = Math.round(
+      Number(value) || 0
+    );
 
     return Array.from(
       { length: 5 },
@@ -176,7 +127,9 @@ export default function JobsPage() {
 
       if (authUser) {
         profile =
-          await ensureProfile(authUser);
+          await ensureProfile(
+            authUser
+          );
 
         setUserProfile(profile);
 
@@ -321,7 +274,9 @@ export default function JobsPage() {
             }
           );
 
-        if (selectedAssignedError) {
+        if (
+          selectedAssignedError
+        ) {
           throw selectedAssignedError;
         }
 
@@ -404,7 +359,7 @@ export default function JobsPage() {
 
           for (
             const interest of
-            interestRows || []
+              interestRows || []
           ) {
             if (
               !grouped[
@@ -589,7 +544,8 @@ export default function JobsPage() {
             job =>
               job.status === "open" ||
               (
-                job.status === "assigned" &&
+                job.status ===
+                  "assigned" &&
                 job.selected_pro_id ===
                   authUser.id
               )
@@ -723,7 +679,8 @@ export default function JobsPage() {
     try {
       const {
         data: authData
-      } = await supabase.auth.getUser();
+      } =
+        await supabase.auth.getUser();
 
       const authUser =
         authData?.user;
@@ -741,8 +698,7 @@ export default function JobsPage() {
         );
 
       if (
-        profile?.role ===
-        "pro"
+        profile?.role === "pro"
       ) {
         setMessage(
           "Majstorski račun ne može objavljivati poslove."
@@ -762,8 +718,7 @@ export default function JobsPage() {
         );
 
       if (
-        files.length >
-        5
+        files.length > 5
       ) {
         setMessage(
           "Možete dodati najviše 5 fotografija."
@@ -916,7 +871,9 @@ export default function JobsPage() {
           "Objava posla nije uspjela."
       );
     } finally {
-      setSubmitting(false);
+      setSubmitting(
+        false
+      );
     }
   }
 
@@ -942,7 +899,7 @@ export default function JobsPage() {
 
     if (
       job.status !==
-      "assigned" ||
+        "assigned" ||
       !job.selected_pro_id
     ) {
       alert(
@@ -1019,7 +976,8 @@ export default function JobsPage() {
     }
 
     if (
-      job.status !== "open"
+      job.status !==
+        "open"
     ) {
       alert(
         "Posao u tijeku ili završeni posao ne može se izbrisati."
@@ -1100,7 +1058,8 @@ export default function JobsPage() {
     }
 
     if (
-      job.status !== "open"
+      job.status !==
+        "open"
     ) {
       alert(
         "Majstor se može odabrati samo za otvoreni posao."
@@ -1171,7 +1130,8 @@ export default function JobsPage() {
       );
     }
   }
-    async function showInterest(
+
+  async function showInterest(
     job
   ) {
     if (!supabase) {
@@ -1190,7 +1150,8 @@ export default function JobsPage() {
 
     const {
       data: authData
-    } = await supabase.auth.getUser();
+    } =
+      await supabase.auth.getUser();
 
     const authUser =
       authData?.user;
@@ -1218,7 +1179,7 @@ export default function JobsPage() {
 
     if (
       profile?.role !==
-      "pro"
+        "pro"
     ) {
       alert(
         "Ova funkcija dostupna je samo registriranim majstorima."
@@ -1256,7 +1217,7 @@ export default function JobsPage() {
     if (error) {
       if (
         error.code ===
-        "23505"
+          "23505"
       ) {
         alert(
           "Već ste iskazali interes za ovaj posao."
@@ -1285,7 +1246,8 @@ export default function JobsPage() {
     }
 
     if (
-      job.status !== "open"
+      job.status !==
+        "open"
     ) {
       alert(
         "Kontakt više nije moguće otključati jer posao nije otvoren."
@@ -1296,7 +1258,8 @@ export default function JobsPage() {
     try {
       const {
         data: authData
-      } = await supabase.auth.getUser();
+      } =
+        await supabase.auth.getUser();
 
       if (
         !authData?.user
@@ -1323,7 +1286,7 @@ export default function JobsPage() {
 
       if (
         profile?.role !==
-        "pro"
+          "pro"
       ) {
         alert(
           "Kontakt mogu otključati samo registrirani majstori."
@@ -1397,43 +1360,27 @@ export default function JobsPage() {
             job.selected_pro_id ===
               currentUserId;
 
-          /*
-           * Majstor vidi:
-           * 1. otvorene poslove
-           * 2. posao za koji je upravo on odabran
-           *
-           * Posao koji je dodijeljen drugom majstoru
-           * više mu se ne prikazuje.
-           */
           if (
             userProfile?.role ===
-            "pro" &&
-            job.status !== "open" &&
+              "pro" &&
+            job.status !==
+              "open" &&
             !selectedAssignedForMe
           ) {
             return false;
           }
 
-          /*
-           * Naručitelj vidi svoje assigned/completed
-           * poslove. Ostali korisnici ih ne vide.
-           */
           if (
             userProfile?.role !==
-              "pro" &&
-            job.status !== "open" &&
+                          "pro" &&
+            job.status !==
+              "open" &&
             job.customer_id !==
               currentUserId
           ) {
             return false;
           }
 
-          /*
-           * Ako je majstor već odabran za posao,
-           * posao mu uvijek ostaje vidljiv.
-           * Grad, kategorija i radijus ga više
-           * ne smiju sakriti.
-           */
           if (
             selectedAssignedForMe
           ) {
@@ -1510,30 +1457,6 @@ export default function JobsPage() {
       currentUserId
     ]);
 
-  const openVisibleCount =
-    visibleJobs.filter(
-      job =>
-        job.status === "open"
-    ).length;
-
-  const ownAssignedCount =
-    visibleJobs.filter(
-      job =>
-        job.customer_id ===
-          currentUserId &&
-        job.status ===
-          "assigned"
-    ).length;
-
-  const ownCompletedCount =
-    visibleJobs.filter(
-      job =>
-        job.customer_id ===
-          currentUserId &&
-        job.status ===
-          "completed"
-    ).length;
-
   const selectedAssignedCount =
     visibleJobs.filter(
       job =>
@@ -1577,89 +1500,9 @@ export default function JobsPage() {
           </h1>
 
           <p className="muted">
-            Objavite novi posao ili pronađite posao koji odgovara vašim uslugama.
+            Objavite posao ili pronađite odgovarajući posao.
           </p>
         </div>
-
-        {userProfile?.role ===
-          "customer" && (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns:
-                "repeat(auto-fit, minmax(130px, 1fr))",
-              gap: "10px",
-              marginBottom:
-                "20px"
-            }}
-          >
-            <div
-              className="card"
-              style={{
-                textAlign:
-                  "center",
-                padding: "14px"
-              }}
-            >
-              <strong
-                style={{
-                  fontSize:
-                    "26px"
-                }}
-              >
-                {openVisibleCount}
-              </strong>
-
-              <div className="muted">
-                Otvoreni
-              </div>
-            </div>
-
-            <div
-              className="card"
-              style={{
-                textAlign:
-                  "center",
-                padding: "14px"
-              }}
-            >
-              <strong
-                style={{
-                  fontSize:
-                    "26px"
-                }}
-              >
-                {ownAssignedCount}
-              </strong>
-
-              <div className="muted">
-                U tijeku
-              </div>
-            </div>
-
-            <div
-              className="card"
-              style={{
-                textAlign:
-                  "center",
-                padding: "14px"
-              }}
-            >
-              <strong
-                style={{
-                  fontSize:
-                    "26px"
-                }}
-              >
-                {ownCompletedCount}
-              </strong>
-
-              <div className="muted">
-                Završeni
-              </div>
-            </div>
-          </div>
-        )}
 
         {userProfile?.role ===
           "pro" &&
@@ -1674,38 +1517,26 @@ export default function JobsPage() {
                 "16px"
             }}
           >
-            <span className="eyebrow">
-              Aktivni radovi
-            </span>
-
-            <h3
-              style={{
-                marginBottom:
-                  "6px"
-              }}
-            >
+            <strong>
               {selectedAssignedCount ===
               1
                 ? "Imate posao u tijeku"
                 : `Imate ${selectedAssignedCount} poslova u tijeku`}
-            </h3>
+            </strong>
 
-            <p
-              className="muted"
+            <div
               style={{
-                marginBottom:
-                  "12px"
+                marginTop:
+                  "10px"
               }}
             >
-              Poslovi za koje ste odabrani ostaju prikazani i nakon što više nisu otvoreni za druge majstore.
-            </p>
-
-            <Link
-              href="/dashboard"
-              className="button small"
-            >
-              Moj pregled
-            </Link>
+              <Link
+                href="/dashboard"
+                className="button small"
+              >
+                Moj pregled
+              </Link>
+            </div>
           </div>
         )}
 
@@ -1870,47 +1701,20 @@ export default function JobsPage() {
             <div
               style={{
                 marginBottom:
-                  "18px"
+                  "16px"
               }}
             >
-              <span className="eyebrow">
-                Poslovi
-              </span>
-
               <h2>
                 Dostupni poslovi
               </h2>
 
-              <p className="muted">
-                Filtrirajte poslove prema gradu i vrsti usluge.
-              </p>
-            </div>
-
-            {userProfile?.role ===
-              "pro" && (
-              <div
-                className="card"
-                style={{
-                  marginBottom:
-                    "16px",
-                  padding:
-                    "14px"
-                }}
-              >
-                <strong>
-                  Vaš radijus usluge
-                </strong>
-
-                <p
-                  className="muted"
-                  style={{
-                    marginBottom: 0
-                  }}
-                >
-                  Otvoreni poslovi filtriraju se prema vašem spremljenom radijusu rada. Posao za koji ste već odabrani ostaje vidljiv bez obzira na filter.
+              {userProfile?.role ===
+                "pro" && (
+                <p className="muted">
+                  Prikazuju se poslovi unutar vašeg spremljenog radijusa.
                 </p>
-              </div>
-            )}
+              )}
+            </div>
 
             <div
               className="filters"
@@ -1920,7 +1724,7 @@ export default function JobsPage() {
               }}
             >
               <input
-                placeholder="Filtriraj po gradu"
+                placeholder="Grad"
                 value={
                   filterCity
                 }
@@ -2002,7 +1806,7 @@ export default function JobsPage() {
                       }
                       style={{
                         marginBottom:
-                          "16px"
+                          "14px"
                       }}
                     >
                       <div
@@ -2019,31 +1823,23 @@ export default function JobsPage() {
                             "wrap"
                         }}
                       >
-                        <div
-                          style={{
-                            display:
-                              "flex",
-                            gap:
-                              "8px",
-                            flexWrap:
-                              "wrap"
-                          }}
-                        >
+                        <div>
                           <span className="badge">
                             {job.category}
                           </span>
 
-                          {isOwner && (
-                            <span className="badge">
-                              Moj posao
-                            </span>
-                          )}
+                          <h3
+                            style={{
+                              margin:
+                                "10px 0 4px"
+                            }}
+                          >
+                            {job.city}
 
-                          {isSelectedPro && (
-                            <span className="badge">
-                              Odabrani ste
-                            </span>
-                          )}
+                            {job.zip
+                              ? ` · ${job.zip}`
+                              : ""}
+                          </h3>
                         </div>
 
                         <span className="badge">
@@ -2053,97 +1849,37 @@ export default function JobsPage() {
                         </span>
                       </div>
 
-                      <h3
-                        style={{
-                          marginBottom:
-                            "6px"
-                        }}
-                      >
-                        {job.city}
-
-                        {job.zip
-                          ? ` · ${job.zip}`
-                          : ""}
-                      </h3>
-
                       <p
                         className="muted"
                         style={{
-                          marginTop: 0
+                          margin:
+                            "0 0 12px"
                         }}
                       >
-                        Željeni početak:{" "}
-                        <strong>
-                          {job.desired_start ||
-                            "Nije navedeno"}
-                        </strong>
+                        {job.desired_start ||
+                          "Po dogovoru"}
                       </p>
 
-                      <p>
+                      <p
+                        style={{
+                          marginBottom:
+                            0
+                        }}
+                      >
                         {job.description}
                       </p>
 
                       {isSelectedPro && (
-                        <div
+                        <p
                           style={{
-                            padding:
-                              "14px",
-                            background:
-                              "#f7f8fa",
-                            borderRadius:
-                              "12px",
-                            marginTop:
-                              "12px"
+                            margin:
+                              "12px 0 0",
+                            fontWeight:
+                              700
                           }}
                         >
-                          <strong>
-                            Odabrani ste za ovaj posao
-                          </strong>
-
-                          <p
-                            className="muted"
-                            style={{
-                              margin:
-                                "6px 0 0"
-                            }}
-                          >
-                            Naručitelj je odabrao vas kao izvođača. Posao je sada u tijeku i više nije dostupan drugim majstorima.
-                          </p>
-                        </div>
-                      )}
-
-                      {!isOpen &&
-                        !isSelectedPro && (
-                        <div
-                          style={{
-                            padding:
-                              "12px",
-                            background:
-                              "#f7f8fa",
-                            borderRadius:
-                              "12px",
-                            marginTop:
-                              "12px"
-                          }}
-                        >
-                          <strong>
-                            {statusLabel(
-                              job.status
-                            )}
-                          </strong>
-
-                          <p
-                            className="muted"
-                            style={{
-                              margin:
-                                "5px 0 0"
-                            }}
-                          >
-                            {statusDescription(
-                              job.status
-                            )}
-                          </p>
-                        </div>
+                          Odabrani ste za ovaj posao.
+                        </p>
                       )}
 
                       {job.image_urls
@@ -2154,9 +1890,9 @@ export default function JobsPage() {
                             display:
                               "grid",
                             gridTemplateColumns:
-                              "repeat(auto-fit, minmax(105px, 1fr))",
+                              "repeat(auto-fit, minmax(95px, 1fr))",
                             gap:
-                              "10px",
+                              "8px",
                             marginTop:
                               "14px"
                           }}
@@ -2181,7 +1917,7 @@ export default function JobsPage() {
                                   overflow:
                                     "hidden",
                                   borderRadius:
-                                    "14px",
+                                    "12px",
                                   border:
                                     "1px solid var(--border)"
                                 }}
@@ -2212,9 +1948,9 @@ export default function JobsPage() {
                         <div
                           style={{
                             marginTop:
-                              "18px",
-                            paddingTop:
                               "16px",
+                            paddingTop:
+                              "14px",
                             borderTop:
                               "1px solid var(--border)"
                           }}
@@ -2228,16 +1964,14 @@ export default function JobsPage() {
                               alignItems:
                                 "center",
                               gap:
-                                "10px",
-                              flexWrap:
-                                "wrap"
+                                "10px"
                             }}
                           >
                             <strong>
-                              Zainteresirani majstori
+                              Zainteresirani
                             </strong>
 
-                            <span className="badge">
+                            <span className="muted">
                               {
                                 jobInterests.length
                               }
@@ -2260,9 +1994,9 @@ export default function JobsPage() {
                                 display:
                                   "grid",
                                 gap:
-                                  "10px",
+                                  "8px",
                                 marginTop:
-                                  "12px"
+                                  "10px"
                               }}
                             >
                               {jobInterests.map(
@@ -2293,13 +2027,11 @@ export default function JobsPage() {
                                       }
                                       style={{
                                         padding:
-                                          "14px",
+                                          "12px",
                                         border:
-                                          isSelected
-                                            ? "2px solid currentColor"
-                                            : "1px solid var(--border)",
+                                          "1px solid var(--border)",
                                         borderRadius:
-                                          "14px"
+                                          "12px"
                                       }}
                                     >
                                       <div
@@ -2311,9 +2043,7 @@ export default function JobsPage() {
                                           gap:
                                             "10px",
                                           flexWrap:
-                                            "wrap",
-                                          marginBottom:
-                                            "10px"
+                                            "wrap"
                                         }}
                                       >
                                         <div>
@@ -2323,72 +2053,75 @@ export default function JobsPage() {
                                           </strong>
 
                                           {info.verified && (
-                                            <div
-                                              className="badge"
+                                            <small
+                                              className="muted"
                                               style={{
+                                                display:
+                                                  "block",
                                                 marginTop:
-                                                  "6px"
+                                                  "3px"
                                               }}
                                             >
-                                              ✓ Verificirani majstor
-                                            </div>
+                                              ✓ Verificirani
+                                            </small>
                                           )}
                                         </div>
 
-                                        {info.reviewCount >
-                                        0 ? (
-                                          <div
-                                            style={{
-                                              textAlign:
-                                                "right"
-                                            }}
-                                          >
-                                            <div
-                                              style={{
-                                                fontSize:
-                                                  "19px",
-                                                lineHeight:
-                                                  1
-                                              }}
-                                            >
-                                              {renderStars(
-                                                info.averageRating
-                                              )}
-                                            </div>
+                                        <div
+                                          style={{
+                                            textAlign:
+                                              "right"
+                                          }}
+                                        >
+                                          {info.reviewCount >
+                                          0 ? (
+                                            <>
+                                              <div>
+                                                {renderStars(
+                                                  info.averageRating
+                                                )}
+                                              </div>
 
+                                              <small className="muted">
+                                                {info.averageRating.toFixed(
+                                                  1
+                                                )}{" "}
+                                                ·{" "}
+                                                {
+                                                  info.reviewCount
+                                                }
+                                              </small>
+                                            </>
+                                          ) : (
                                             <small className="muted">
-                                              {info.averageRating.toFixed(
-                                                1
-                                              )}{" "}
-                                              ·{" "}
-                                              {
-                                                info.reviewCount
-                                              }{" "}
-                                              recenzija
+                                              Bez ocjena
                                             </small>
-                                          </div>
-                                        ) : (
-                                          <small className="muted">
-                                            Još nema ocjena
-                                          </small>
-                                        )}
+                                          )}
+                                        </div>
                                       </div>
 
                                       {isSelected && (
-                                        <div
-                                          className="badge"
+                                        <p
                                           style={{
-                                            marginBottom:
-                                              "10px"
+                                            margin:
+                                              "8px 0 0",
+                                            fontWeight:
+                                              700
                                           }}
                                         >
                                           Odabrani majstor
-                                        </div>
+                                        </p>
                                       )}
 
-                                      <p>
+                                      <p
+                                        className="muted"
+                                        style={{
+                                          margin:
+                                            "8px 0 10px"
+                                        }}
+                                      >
                                         {interest.message ||
-                                          "Majstor je zainteresiran za posao."}
+                                          "Zainteresiran sam za ovaj posao."}
                                       </p>
 
                                       <div
@@ -2405,7 +2138,7 @@ export default function JobsPage() {
                                           href={`/majstor/${interest.pro_id}`}
                                           className="button secondary small"
                                         >
-                                          Pogledaj profil
+                                          Profil
                                         </Link>
 
                                         {isOpen &&
@@ -2427,12 +2160,12 @@ export default function JobsPage() {
                                               {selectingPro ===
                                               loadingKey
                                                 ? "Odabirem..."
-                                                : "Odaberi majstora"}
+                                                : "Odaberi"}
                                             </button>
                                           )}
 
                                         {anotherSelected && (
-                                          <span
+                                          <small
                                             className="muted"
                                             style={{
                                               alignSelf:
@@ -2440,7 +2173,7 @@ export default function JobsPage() {
                                             }}
                                           >
                                             Odabran je drugi majstor.
-                                          </span>
+                                          </small>
                                         )}
                                       </div>
                                     </div>
@@ -2455,9 +2188,9 @@ export default function JobsPage() {
                       <div
                         style={{
                           marginTop:
-                            "18px",
-                          paddingTop:
                             "16px",
+                          paddingTop:
+                            "14px",
                           borderTop:
                             "1px solid var(--border)"
                         }}
@@ -2490,7 +2223,7 @@ export default function JobsPage() {
                                 {deletingJob ===
                                 job.id
                                   ? "Brišem..."
-                                  : "Izbriši posao"}
+                                  : "Izbriši"}
                               </button>
                             )}
 
@@ -2532,14 +2265,14 @@ export default function JobsPage() {
                                     href={`/majstor/${job.selected_pro_id}#ocijeni`}
                                     className="button small"
                                   >
-                                    Ocijeni majstora
+                                    Ocijeni
                                   </Link>
 
                                   <Link
                                     href={`/majstor/${job.selected_pro_id}`}
                                     className="button secondary small"
                                   >
-                                    Profil majstora
+                                    Profil
                                   </Link>
                                 </>
                               )}
@@ -2567,7 +2300,7 @@ export default function JobsPage() {
                                   )
                                 }
                               >
-                                Zanima me posao
+                                Zanima me
                               </button>
 
                               {unlockedPhones[
@@ -2582,7 +2315,7 @@ export default function JobsPage() {
                                     ""
                                   )}`}
                                 >
-                                  Nazovi:{" "}
+                                  Nazovi{" "}
                                   {
                                     unlockedPhones[
                                       job.id
@@ -2626,27 +2359,8 @@ export default function JobsPage() {
                                   ""
                                 )}`}
                               >
-                                Nazovi naručitelja:{" "}
-                                {
-                                  unlockedPhones[
-                                    job.id
-                                  ]
-                                }
+                                Nazovi naručitelja
                               </a>
-                            )}
-
-                            {!unlockedPhones[
-                              job.id
-                            ] && (
-                              <p
-                                className="muted"
-                                style={{
-                                  margin:
-                                    "0"
-                                }}
-                              >
-                                Kontakt naručitelja trenutno nije dostupan na ovoj stranici.
-                              </p>
                             )}
 
                             <Link
@@ -2687,3 +2401,4 @@ export default function JobsPage() {
     </main>
   );
 }
+            
