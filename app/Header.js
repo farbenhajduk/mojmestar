@@ -16,7 +16,14 @@ import {
   createBrowserClient
 } from "@supabase/ssr";
 
+import {
+  dedupeNotifications
+} from "../lib/notifications";
+
 export default function Header() {
+  const [menuOpen, setMenuOpen] =
+    useState(false);
+
   const [user, setUser] =
     useState(null);
 
@@ -118,7 +125,7 @@ export default function Header() {
 
       try {
         const {
-          count,
+          data,
           error
         } =
           await supabase
@@ -126,12 +133,7 @@ export default function Header() {
               "notifications"
             )
             .select(
-              "id",
-              {
-                count:
-                  "exact",
-                head: true
-              }
+              "id, user_id, type, title, message, entity_id, is_read, created_at"
             )
             .eq(
               "user_id",
@@ -152,7 +154,9 @@ export default function Header() {
         }
 
         setUnreadNotifications(
-          count || 0
+          dedupeNotifications(
+            data || []
+          ).length
         );
       } catch (error) {
         console.error(
@@ -330,6 +334,8 @@ export default function Header() {
       0
     );
 
+    setMenuOpen(false);
+
     router.push("/");
     router.refresh();
   }
@@ -376,11 +382,42 @@ export default function Header() {
                 : "KUPAC"}
             </span>
           )}
+
+          <button
+            type="button"
+            className="mobileMenuButton"
+            aria-expanded={menuOpen}
+            aria-controls="main-navigation"
+            onClick={() =>
+              setMenuOpen(
+                current => !current
+              )
+            }
+          >
+            <span aria-hidden="true">
+              {menuOpen ? "×" : "☰"}
+            </span>
+            <span>
+              Izbornik
+            </span>
+          </button>
         </div>
 
-        <nav className="nav">
+        <nav
+          id="main-navigation"
+          className={`nav ${
+            menuOpen
+              ? "navOpen"
+              : ""
+          }`}
+          onClick={() =>
+            setMenuOpen(false)
+          }
+        >
           <Link href="/jobs">
-            Poslovi
+            {profile?.role === "customer"
+              ? "Moji poslovi"
+              : "Poslovi"}
           </Link>
 
           <Link href="/majstori">
@@ -397,11 +434,12 @@ export default function Header() {
               )}
 
               <Link href="/profile">
-                Profil
+                Moj profil
               </Link>
 
               <Link
                 href="/dashboard"
+                className="button secondary small dashboardLink"
                 aria-label={
                   notificationLabel()
                 }
@@ -417,10 +455,6 @@ export default function Header() {
                     "center",
                   justifyContent:
                     "center",
-                  minWidth:
-                    "42px",
-                  minHeight:
-                    "38px",
                   textDecoration:
                     "none"
                 }}
@@ -440,10 +474,8 @@ export default function Header() {
                   0 && (
                   <span
                     style={{
-                      position:
-                        "absolute",
-                      top: "-5px",
-                      right: "-7px",
+                      marginLeft:
+                        "6px",
                       minWidth:
                         "20px",
                       height:
@@ -468,7 +500,7 @@ export default function Header() {
                       color:
                         "#ffffff",
                       border:
-                        "2px solid white"
+                        "1px solid white"
                     }}
                   >
                     {unreadNotifications >
@@ -477,29 +509,10 @@ export default function Header() {
                       : unreadNotifications}
                   </span>
                 )}
-              </Link>
 
-              <Link
-                href="/dashboard"
-                className="button secondary small"
-              >
-                Moj pregled
-
-                {unreadNotifications >
-                  0 && (
-                  <span
-                    style={{
-                      marginLeft:
-                        "6px"
-                    }}
-                  >
-                    (
-                    {
-                      unreadNotifications
-                    }
-                    )
-                  </span>
-                )}
+                <span>
+                  Moj pregled
+                </span>
               </Link>
 
               <button
