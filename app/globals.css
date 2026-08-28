@@ -1,15 +1,16 @@
 :root {
-  --bg: #f7f8fa;
+  --bg: #f4f7f9;
   --surface: #ffffff;
-  --text: #18202b;
+  --text: #0f172a;
   --muted: #6f7782;
-  --border: #dfe3e8;
-  --accent: #18202b;
-  --accent-soft: #eef1f4;
+  --border: #d8e4e3;
+  --accent: #0f766e;
+  --accent-strong: #115e59;
+  --accent-soft: #f0fdfa;
   --danger: #b42318;
   --radius: 18px;
   --radius-small: 12px;
-  --shadow: 0 8px 24px rgba(24, 32, 43, 0.06);
+  --shadow: 0 8px 24px rgba(15, 118, 110, 0.07);
 }
 
 * {
@@ -117,6 +118,15 @@ img {
   font-weight: 700;
 }
 
+.nav a:not(.button) {
+  transition: color 0.15s ease;
+}
+
+.nav a:not(.button):hover,
+.nav a:not(.button):focus-visible {
+  color: var(--accent);
+}
+
 .hero {
   padding: 88px 0 64px;
 }
@@ -220,6 +230,10 @@ p {
   transform: scale(0.98);
 }
 
+.button:hover {
+  background: var(--accent-strong);
+}
+
 .button:disabled {
   opacity: 0.55;
   cursor: not-allowed;
@@ -227,8 +241,12 @@ p {
 
 .button.secondary {
   background: var(--accent-soft);
-  color: var(--text);
+  color: var(--accent-strong);
   border: 1px solid var(--border);
+}
+
+.button.secondary:hover {
+  background: #ccfbf1;
 }
 
 .button.small {
@@ -330,6 +348,8 @@ textarea:focus {
   padding: 7px 10px;
   font-size: 0.82rem;
   font-weight: 800;
+  color: var(--accent-strong);
+  border: 1px solid #ccfbf1;
 }
 
 .rowBetween {
