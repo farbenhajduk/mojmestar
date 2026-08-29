@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
 import { authErrorMessage } from "../../lib/auth-messages";
 
@@ -11,6 +12,7 @@ export default function RegisterPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [registered, setRegistered] = useState(false);
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -49,10 +51,11 @@ export default function RegisterPage() {
     }
 
     if (data?.session) {
-      window.location.href = "/jobs";
+      window.location.href = role === "pro" ? "/profile" : "/jobs";
       return;
     }
 
+    setRegistered(true);
     setMessage(
       "Registracija uspješna. Provjeri e-mail ako je potvrda uključena."
     );
@@ -65,6 +68,7 @@ export default function RegisterPage() {
           <p className="eyebrow">MOJMEŠTAR</p>
           <h2>Registracija</h2>
 
+          {!registered ? (
           <form className="form" onSubmit={handleRegister}>
             <fieldset className="roleChooser">
               <legend>
@@ -133,14 +137,27 @@ export default function RegisterPage() {
               {loading ? "Izrada računa..." : "Izradi račun"}
             </button>
           </form>
+          ) : (
+            <div className="accessPrompt" role="status">
+              <strong>Račun je uspješno izrađen</strong>
+              <p className="muted">
+                Otvorite poruku koju smo poslali na {email} i potvrdite svoju e-mail adresu.
+              </p>
+              <Link href="/login" className="button">
+                Idi na prijavu
+              </Link>
+            </div>
+          )}
 
-          {message && <p className="formMessage" aria-live="polite">{message}</p>}
+          {message && !registered && (
+            <p className="formMessage" aria-live="polite">{message}</p>
+          )}
 
           <p className="muted" style={{ marginTop: 24 }}>
             Već imaš račun?{" "}
-            <a href="/login">
+            <Link href="/login">
               <strong>Prijavi se</strong>
-            </a>
+            </Link>
           </p>
         </div>
       </div>
