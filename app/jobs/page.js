@@ -30,6 +30,13 @@ export default function JobsPage() {
   const [unlockedPhones, setUnlockedPhones] = useState({});
   const [interestsByJob, setInterestsByJob] = useState({});
   const [proInfoById, setProInfoById] = useState({});
+  const [sentInterestJobIds, setSentInterestJobIds] = useState({});
+  const [interestJobId, setInterestJobId] = useState("");
+  const [interestNote, setInterestNote] = useState(
+    "Zainteresiran sam za ovaj posao."
+  );
+  const [interestSubmitting, setInterestSubmitting] = useState("");
+  const [interestFeedback, setInterestFeedback] = useState({});
 
   const [submitting, setSubmitting] = useState(false);
   const [selectingPro, setSelectingPro] = useState("");
@@ -539,6 +546,29 @@ export default function JobsPage() {
         authUser &&
         profile?.role === "pro"
       ) {
+        const {
+          data: ownInterestRows,
+          error: ownInterestError
+        } = await supabase
+          .from("interests")
+          .select("job_id")
+          .eq("pro_id", authUser.id);
+
+        if (ownInterestError) {
+          console.warn(ownInterestError);
+        }
+
+        setSentInterestJobIds(
+          Object.fromEntries(
+            (ownInterestError
+              ? []
+              : ownInterestRows || []
+            ).map(
+              row => [row.job_id, true]
+            )
+          )
+        );
+
         const contactJobs =
           loadedJobs.filter(
             job =>
@@ -590,6 +620,7 @@ export default function JobsPage() {
           )
         );
       } else {
+        setSentInterestJobIds({});
         setUnlockedPhones(
           {}
         );
@@ -1131,111 +1162,154 @@ export default function JobsPage() {
     }
   }
 
-  async function showInterest(
+  function openInterestForm(job) {
+    setInterestFeedback(previous => ({
+      ...previous,
+      [job.id]: ""
+    }));
+    setInterestNote(
+      "Zainteresiran sam za ovaj posao."
+    );
+    setInterestJobId(job.id);
+  }
+
+  async function submitInterest(
+    event,
     job
   ) {
+    event.preventDefault();
+
     if (!supabase) {
       return;
     }
 
-    if (
-      job.status !== "open" ||
-      job.selected_pro_id
-    ) {
-      alert(
-        "Ovaj posao više nije otvoren za nove majstore."
-      );
+    const note = interestNote.trim();
+
+    if (!note) {
+      setInterestFeedback(previous => ({
+        ...previous,
+        [job.id]: "Napišite kratku poruku naručitelju."
+      }));
       return;
     }
 
-    const {
-      data: authData
-    } =
-      await supabase.auth.getUser();
+    setInterestSubmitting(job.id);
+    setInterestFeedback(previous => ({
+      ...previous,
+      [job.id]: ""
+    }));
 
-    const authUser =
-      authData?.user;
-
-    if (!authUser) {
-      alert(
-        "Prvo se prijavite."
-      );
-      return;
-    }
-
-    let profile =
-      userProfile;
-
-    if (!profile) {
-      profile =
-        await ensureProfile(
-          authUser
-        );
-
-      setUserProfile(
-        profile
-      );
-    }
-
-    if (
-      profile?.role !==
-        "pro"
-    ) {
-      alert(
-        "Ova funkcija dostupna je samo registriranim majstorima."
-      );
-      return;
-    }
-
-    const note =
-      window.prompt(
-        "Kratka poruka naručitelju:",
-        "Zainteresiran sam za ovaj posao."
-      );
-
-    if (
-      note === null
-    ) {
-      return;
-    }
-
-    const {
-      error
-    } = await supabase
-      .from("interests")
-      .insert({
-        job_id:
-          job.id,
-
-        pro_id:
-          authUser.id,
-
-        message:
-          note.trim()
-      });
-
-    if (error) {
+    try {
       if (
-        error.code ===
-          "23505"
+        job.status !== "open" ||
+        job.selected_pro_id
       ) {
-        alert(
-          "Već ste iskazali interes za ovaj posao."
-        );
-      } else {
-        alert(
-          error.message
+        setInterestFeedback(previous => ({
+          ...previous,
+          [job.id]: "Ovaj posao više nije otvoren za nove majstore."
+        }));
+        return;
+      }
+
+      const {
+        data: authData
+      } =
+        await supabase.auth.getUser();
+
+      const authUser =
+        authData?.user;
+
+      if (!authUser) {
+        setInterestFeedback(previous => ({
+          ...previous,
+          [job.id]: "Prvo se prijavite."
+        }));
+        return;
+      }
+
+      let profile =
+        userProfile;
+
+      if (!profile) {
+        profile =
+          await ensureProfile(
+            authUser
+          );
+
+        setUserProfile(
+          profile
         );
       }
 
-      return;
+      if (
+        profile?.role !==
+          "pro"
+      ) {
+        setInterestFeedback(previous => ({
+          ...previous,
+          [job.id]: "Ova funkcija dostupna je samo registriranim majstorima."
+        }));
+        return;
+      }
+
+      const {
+        error
+      } = await supabase
+        .from("interests")
+        .insert({
+          job_id:
+            job.id,
+
+          pro_id:
+            authUser.id,
+
+          message:
+            note
+        });
+
+      if (
+        error?.code ===
+          "23505"
+      ) {
+        setSentInterestJobIds(previous => ({
+          ...previous,
+          [job.id]: true
+        }));
+
+        setInterestJobId("");
+        setInterestFeedback(previous => ({
+          ...previous,
+          [job.id]: "Već ste iskazali interes za ovaj posao."
+        }));
+        return;
+      }
+
+      if (error) {
+        throw error;
+      }
+
+      setSentInterestJobIds(previous => ({
+        ...previous,
+        [job.id]: true
+      }));
+      setInterestJobId("");
+      setInterestNote(
+        "Zainteresiran sam za ovaj posao."
+      );
+      setInterestFeedback(previous => ({
+        ...previous,
+        [job.id]: "Interes je poslan naručitelju."
+      }));
+    } catch (error) {
+      console.error(error);
+
+      setInterestFeedback(previous => ({
+        ...previous,
+        [job.id]: "Interes se trenutačno ne može poslati. Pokušajte ponovno."
+      }));
+    } finally {
+      setInterestSubmitting("");
     }
-
-    alert(
-      "Interes je poslan naručitelju."
-    );
-
-    await loadAll();
   }
 
   async function unlockContact(
@@ -1807,6 +1881,13 @@ export default function JobsPage() {
                       job.id
                     ] || [];
 
+                  const hasSentInterest =
+                    Boolean(
+                      sentInterestJobIds[
+                        job.id
+                      ]
+                    );
+
                   return (
                     <article
                       className="card"
@@ -2300,17 +2381,113 @@ export default function JobsPage() {
                                   "8px"
                               }}
                             >
-                              <button
-                                type="button"
-                                className="button"
-                                onClick={() =>
-                                  showInterest(
-                                    job
-                                  )
-                                }
-                              >
-                                Zanima me
-                              </button>
+                              {hasSentInterest ? (
+                                <div className="inlineNotice success">
+                                  ✓ {interestFeedback[
+                                    job.id
+                                  ] ||
+                                    "Interes je poslan naručitelju."}
+                                </div>
+                              ) : interestJobId ===
+                                job.id ? (
+                                <form
+                                  className="interestForm"
+                                  onSubmit={event =>
+                                    submitInterest(
+                                      event,
+                                      job
+                                    )
+                                  }
+                                >
+                                  <label
+                                    htmlFor={`interest-${job.id}`}
+                                  >
+                                    Poruka naručitelju
+                                  </label>
+
+                                  <textarea
+                                    id={`interest-${job.id}`}
+                                    value={
+                                      interestNote
+                                    }
+                                    maxLength={500}
+                                    autoFocus
+                                    onChange={event =>
+                                      setInterestNote(
+                                        event.target.value
+                                      )
+                                    }
+                                  />
+
+                                  <small className="muted">
+                                    Ukratko predstavite svoje iskustvo i dostupnost.
+                                  </small>
+
+                                  <div className="interestActions">
+                                    <button
+                                      type="submit"
+                                      className="button"
+                                      disabled={
+                                        interestSubmitting ===
+                                        job.id
+                                      }
+                                    >
+                                      {interestSubmitting ===
+                                      job.id
+                                        ? "Šaljem..."
+                                        : "Pošalji interes"}
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      className="button secondary"
+                                      disabled={
+                                        interestSubmitting ===
+                                        job.id
+                                      }
+                                      onClick={() =>
+                                        setInterestJobId(
+                                          ""
+                                        )
+                                      }
+                                    >
+                                      Odustani
+                                    </button>
+                                  </div>
+                                </form>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="button"
+                                  onClick={() =>
+                                    openInterestForm(
+                                      job
+                                    )
+                                  }
+                                >
+                                  Zanima me
+                                </button>
+                              )}
+
+                              {interestFeedback[
+                                job.id
+                              ] &&
+                                !hasSentInterest && (
+                                <div
+                                  className={`inlineNotice${
+                                    hasSentInterest
+                                      ? " success"
+                                      : ""
+                                  }`}
+                                  role="status"
+                                >
+                                  {
+                                    interestFeedback[
+                                      job.id
+                                    ]
+                                  }
+                                </div>
+                              )}
 
                               {unlockedPhones[
                                 job.id
