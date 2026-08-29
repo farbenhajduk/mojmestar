@@ -19,6 +19,7 @@ const categories = [
 export default function JobsPage() {
   const [jobs, setJobs] = useState([]);
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(true);
 
   const [userProfile, setUserProfile] = useState(null);
   const [proProfile, setProProfile] = useState(null);
@@ -37,6 +38,7 @@ export default function JobsPage() {
   );
   const [interestSubmitting, setInterestSubmitting] = useState("");
   const [interestFeedback, setInterestFeedback] = useState({});
+  const [contactFeedback, setContactFeedback] = useState({});
 
   const [submitting, setSubmitting] = useState(false);
   const [selectingPro, setSelectingPro] = useState("");
@@ -113,6 +115,7 @@ export default function JobsPage() {
       setMessage(
         "Aplikacija nije ispravno konfigurirana."
       );
+      setLoading(false);
       return;
     }
 
@@ -121,10 +124,10 @@ export default function JobsPage() {
     try {
       const {
         data: authData
-      } = await supabase.auth.getUser();
+      } = await supabase.auth.getSession();
 
       const authUser =
-        authData?.user || null;
+        authData?.session?.user || null;
 
       setCurrentUserId(
         authUser?.id || null
@@ -632,6 +635,8 @@ export default function JobsPage() {
         err?.message ||
           "Greška pri učitavanju poslova."
       );
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -737,6 +742,26 @@ export default function JobsPage() {
         return;
       }
 
+      const {
+        data: contactProfile,
+        error: contactProfileError
+      } = await supabase
+        .from("profiles")
+        .select("phone")
+        .eq("id", authUser.id)
+        .maybeSingle();
+
+      if (contactProfileError) {
+        throw contactProfileError;
+      }
+
+      if (!contactProfile?.phone?.trim()) {
+        setMessage(
+          "Prije objave posla unesite broj telefona u svom profilu."
+        );
+        return;
+      }
+
       const files =
         Array.from(
           formData.getAll(
@@ -753,6 +778,39 @@ export default function JobsPage() {
       ) {
         setMessage(
           "Možete dodati najviše 5 fotografija."
+        );
+        return;
+      }
+
+      const supportedImageTypes = [
+        "image/jpeg",
+        "image/png",
+        "image/webp"
+      ];
+
+      if (
+        files.some(
+          file =>
+            !supportedImageTypes.includes(
+              file.type
+            )
+        )
+      ) {
+        setMessage(
+          "Dozvoljeni formati fotografija su JPG, PNG i WEBP."
+        );
+        return;
+      }
+
+      if (
+        files.some(
+          file =>
+            file.size >
+            5 * 1024 * 1024
+        )
+      ) {
+        setMessage(
+          "Jedna fotografija može imati najviše 5 MB."
         );
         return;
       }
@@ -922,7 +980,7 @@ export default function JobsPage() {
       job.customer_id !==
       currentUserId
     ) {
-      alert(
+      setMessage(
         "Možete završiti samo svoj posao."
       );
       return;
@@ -933,7 +991,7 @@ export default function JobsPage() {
         "assigned" ||
       !job.selected_pro_id
     ) {
-      alert(
+      setMessage(
         "Najprije morate odabrati majstora."
       );
       return;
@@ -975,9 +1033,8 @@ export default function JobsPage() {
     } catch (err) {
       console.error(err);
 
-      alert(
-        err?.message ||
-          "Posao se nije mogao završiti."
+      setMessage(
+        "Posao se nije mogao završiti. Pokušajte ponovno."
       );
     } finally {
       setClosingJob(
@@ -1000,7 +1057,7 @@ export default function JobsPage() {
       job.customer_id !==
       currentUserId
     ) {
-      alert(
+      setMessage(
         "Možete izbrisati samo svoj posao."
       );
       return;
@@ -1010,7 +1067,7 @@ export default function JobsPage() {
       job.status !==
         "open"
     ) {
-      alert(
+      setMessage(
         "Posao u tijeku ili završeni posao ne može se izbrisati."
       );
       return;
@@ -1056,9 +1113,8 @@ export default function JobsPage() {
     } catch (err) {
       console.error(err);
 
-      alert(
-        err?.message ||
-          "Posao se nije mogao izbrisati."
+      setMessage(
+        "Posao se nije mogao izbrisati. Pokušajte ponovno."
       );
     } finally {
       setDeletingJob(
@@ -1082,7 +1138,7 @@ export default function JobsPage() {
       job.customer_id !==
       currentUserId
     ) {
-      alert(
+      setMessage(
         "Majstora može odabrati samo naručitelj ovog posla."
       );
       return;
@@ -1092,7 +1148,7 @@ export default function JobsPage() {
       job.status !==
         "open"
     ) {
-      alert(
+      setMessage(
         "Majstor se može odabrati samo za otvoreni posao."
       );
       return;
@@ -1101,7 +1157,7 @@ export default function JobsPage() {
     if (
       job.selected_pro_id
     ) {
-      alert(
+      setMessage(
         "Majstor za ovaj posao već je odabran."
       );
       return;
@@ -1151,9 +1207,8 @@ export default function JobsPage() {
     } catch (err) {
       console.error(err);
 
-      alert(
-        err?.message ||
-          "Majstor se nije mogao odabrati."
+      setMessage(
+        "Majstor se nije mogao odabrati. Pokušajte ponovno."
       );
     } finally {
       setSelectingPro(
@@ -1323,9 +1378,10 @@ export default function JobsPage() {
       job.status !==
         "open"
     ) {
-      alert(
-        "Kontakt više nije moguće otključati jer posao nije otvoren."
-      );
+      setContactFeedback(previous => ({
+        ...previous,
+        [job.id]: "Kontakt više nije moguće otključati jer posao nije otvoren."
+      }));
       return;
     }
 
@@ -1338,9 +1394,10 @@ export default function JobsPage() {
       if (
         !authData?.user
       ) {
-        alert(
-          "Prvo se prijavite."
-        );
+        setContactFeedback(previous => ({
+          ...previous,
+          [job.id]: "Prvo se prijavite."
+        }));
         return;
       }
 
@@ -1362,9 +1419,10 @@ export default function JobsPage() {
         profile?.role !==
           "pro"
       ) {
-        alert(
-          "Kontakt mogu otključati samo registrirani majstori."
-        );
+        setContactFeedback(previous => ({
+          ...previous,
+          [job.id]: "Kontakt mogu otključati samo registrirani majstori."
+        }));
         return;
       }
 
@@ -1412,13 +1470,18 @@ export default function JobsPage() {
             phone
         })
       );
+
+      setContactFeedback(previous => ({
+        ...previous,
+        [job.id]: "Kontakt je otključan."
+      }));
     } catch (err) {
       console.error(err);
 
-      alert(
-        err?.message ||
-          "Kontakt se nije mogao otključati."
-      );
+      setContactFeedback(previous => ({
+        ...previous,
+        [job.id]: "Kontakt se nije mogao otključati. Pokušajte ponovno."
+      }));
     }
   }
 
@@ -1556,6 +1619,26 @@ export default function JobsPage() {
     );
   }
 
+  if (loading) {
+    return (
+      <main className="section">
+        <div className="container">
+          <div className="card loadingCard" role="status">
+            <span className="eyebrow">
+              MOJMEŠTAR
+            </span>
+
+            <h1>Poslovi</h1>
+
+            <p className="muted">
+              Učitavanje poslova...
+            </p>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="section">
       <div className="container">
@@ -1585,6 +1668,15 @@ export default function JobsPage() {
                 : "Objavite posao ili pronađite odgovarajući posao."}
           </p>
         </div>
+
+        {message && (
+          <div
+            className="formMessage pageMessage"
+            role="status"
+          >
+            {message}
+          </div>
+        )}
 
         {userProfile?.role ===
           "pro" &&
@@ -1639,12 +1731,14 @@ export default function JobsPage() {
               Objavi posao
             </h2>
 
-              <form
-                onSubmit={
-                  submit
-                }
-                className="form"
-              >
+              {currentUserId ? (
+                <>
+                  <form
+                    onSubmit={
+                      submit
+                    }
+                    className="form"
+                  >
                 <label>
                   Usluga
 
@@ -1694,6 +1788,10 @@ export default function JobsPage() {
                   <input
                     name="zip"
                     placeholder="21000"
+                    inputMode="numeric"
+                    pattern="[0-9]{5}"
+                    maxLength={5}
+                    title="Unesite poštanski broj od 5 znamenki."
                     required
                   />
                 </label>
@@ -1739,16 +1837,16 @@ export default function JobsPage() {
                   <input
                     name="images"
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp"
                     multiple
                   />
 
                   <small className="muted">
-                    Najviše 5 fotografija.
+                    Najviše 5 fotografija, do 5 MB po fotografiji.
                   </small>
                 </label>
 
-                <button
+                  <button
                   className="button"
                   type="submit"
                   disabled={
@@ -1758,25 +1856,43 @@ export default function JobsPage() {
                   {submitting
                     ? "Objavljujem..."
                     : "Objavi posao"}
-                </button>
-              </form>
+                  </button>
 
-            {message && (
-              <div
-                style={{
-                  marginTop:
-                    "14px",
-                  padding:
-                    "12px",
-                  borderRadius:
-                    "12px",
-                  background:
-                    "#f7f8fa"
-                }}
-              >
-                {message}
-              </div>
-            )}
+                  <small className="muted">
+                    Kontaktni broj za majstore možete urediti u svom{" "}
+                    <Link href="/profile">
+                      <strong>profilu</strong>
+                    </Link>
+                    .
+                  </small>
+                  </form>
+
+                </>
+              ) : (
+                <div className="accessPrompt">
+                  <strong>
+                    Prijavite se kao naručitelj
+                  </strong>
+
+                  <p className="muted">
+                    Za objavu posla potreban je besplatan korisnički račun.
+                  </p>
+
+                  <Link
+                    href="/login"
+                    className="button"
+                  >
+                    Prijava
+                  </Link>
+
+                  <Link
+                    href="/register"
+                    className="button secondary"
+                  >
+                    Besplatna registracija
+                  </Link>
+                </div>
+              )}
           </div>
           )}
 
@@ -2474,11 +2590,7 @@ export default function JobsPage() {
                               ] &&
                                 !hasSentInterest && (
                                 <div
-                                  className={`inlineNotice${
-                                    hasSentInterest
-                                      ? " success"
-                                      : ""
-                                  }`}
+                                  className="inlineNotice"
                                   role="status"
                                 >
                                   {
@@ -2520,6 +2632,27 @@ export default function JobsPage() {
                                 >
                                   Otključaj kontakt
                                 </button>
+                              )}
+
+                              {contactFeedback[
+                                job.id
+                              ] && (
+                                <div
+                                  className={`inlineNotice${
+                                    unlockedPhones[
+                                      job.id
+                                    ]
+                                      ? " success"
+                                      : ""
+                                  }`}
+                                  role="status"
+                                >
+                                  {
+                                    contactFeedback[
+                                      job.id
+                                    ]
+                                  }
+                                </div>
                               )}
                             </div>
                           )}
@@ -2578,6 +2711,23 @@ export default function JobsPage() {
                   >
                     Trenutno nema poslova koji odgovaraju odabranim kriterijima.
                   </p>
+
+                  {(filterCity ||
+                    filterCategory) && (
+                    <button
+                      type="button"
+                      className="button secondary"
+                      style={{
+                        marginTop: "14px"
+                      }}
+                      onClick={() => {
+                        setFilterCity("");
+                        setFilterCategory("");
+                      }}
+                    >
+                      Prikaži sve poslove
+                    </button>
+                  )}
                 </div>
               )}
             </div>
