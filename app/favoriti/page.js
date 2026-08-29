@@ -85,17 +85,13 @@ export default function FavoritiPage() {
 
     try {
       const {
-        data: authData,
-        error: authError
+        data: authData
       } =
-        await supabase.auth.getUser();
-
-      if (authError) {
-        throw authError;
-      }
+        await supabase.auth.getSession();
 
       const authUser =
-        authData?.user || null;
+        authData?.session?.user ||
+        null;
 
       setUser(authUser);
 
