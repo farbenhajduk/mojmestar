@@ -980,6 +980,8 @@ export default function ProfilePage() {
                 )
               }
               placeholder="+385..."
+              required
+              autoComplete="tel"
             />
           </label>
 
@@ -1031,6 +1033,10 @@ export default function ProfilePage() {
                     )
                   }
                   placeholder="OIB"
+                  inputMode="numeric"
+                  pattern="[0-9]{11}"
+                  maxLength={11}
+                  title="OIB mora imati 11 znamenki."
                 />
               </label>
 
@@ -1063,6 +1069,10 @@ export default function ProfilePage() {
                     )
                   }
                   placeholder="10000"
+                  inputMode="numeric"
+                  pattern="[0-9]{5}"
+                  maxLength={5}
+                  title="Unesite poštanski broj od 5 znamenki."
                 />
               </label>
 
