@@ -267,11 +267,11 @@ export default function Home() {
                 lineHeight: 1
               }}
             >
-              250+
+              8
             </strong>
 
             <span className="muted">
-              registriranih majstora
+              glavnih kategorija usluga
             </span>
           </div>
 
@@ -288,11 +288,11 @@ export default function Home() {
                 lineHeight: 1
               }}
             >
-              30+
+              ★
             </strong>
 
             <span className="muted">
-              vrsta radova
+              profili, ocjene i portfolio
             </span>
           </div>
 
@@ -309,7 +309,7 @@ export default function Home() {
                 lineHeight: 1
               }}
             >
-              100%
+              0 €
             </strong>
 
             <span className="muted">

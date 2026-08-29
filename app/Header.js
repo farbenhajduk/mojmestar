@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import {
+  usePathname,
   useRouter
 } from "next/navigation";
 
@@ -40,6 +41,9 @@ export default function Header() {
 
   const router =
     useRouter();
+
+  const pathname =
+    usePathname();
 
   const supabaseUrl =
     process.env
@@ -414,14 +418,28 @@ export default function Header() {
             setMenuOpen(false)
           }
         >
-          <Link href="/jobs">
+          <Link
+            href="/jobs"
+            className={
+              pathname.startsWith("/jobs")
+                ? "navActive"
+                : undefined
+            }
+          >
             {profile?.role === "customer"
               ? "Moji poslovi"
               : "Poslovi"}
           </Link>
 
           {profile?.role !== "pro" && (
-            <Link href="/majstori">
+            <Link
+              href="/majstori"
+              className={
+                pathname.startsWith("/majstor")
+                  ? "navActive"
+                  : undefined
+              }
+            >
               Majstori
             </Link>
           )}
@@ -430,18 +448,36 @@ export default function Header() {
             <>
               {profile?.role ===
                 "customer" && (
-                <Link href="/favoriti">
+                <Link
+                  href="/favoriti"
+                  className={
+                    pathname.startsWith("/favoriti")
+                      ? "navActive"
+                      : undefined
+                  }
+                >
                   Spremljeni
                 </Link>
               )}
 
-              <Link href="/profile">
+              <Link
+                href="/profile"
+                className={
+                  pathname.startsWith("/profile")
+                    ? "navActive"
+                    : undefined
+                }
+              >
                 Moj profil
               </Link>
 
               <Link
                 href="/dashboard"
-                className="button secondary small dashboardLink"
+                className={`button secondary small dashboardLink${
+                  pathname.startsWith("/dashboard")
+                    ? " navActiveButton"
+                    : ""
+                }`}
                 aria-label={
                   notificationLabel()
                 }
