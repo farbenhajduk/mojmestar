@@ -420,9 +420,11 @@ export default function Header() {
               : "Poslovi"}
           </Link>
 
-          <Link href="/majstori">
-            Majstori
-          </Link>
+          {profile?.role !== "pro" && (
+            <Link href="/majstori">
+              Majstori
+            </Link>
+          )}
 
           {!loading && user ? (
             <>
