@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
 import { authErrorMessage } from "../../lib/auth-messages";
 
@@ -130,9 +131,9 @@ export default function LoginPage() {
 
           <p className="muted" style={{ marginTop: 24 }}>
             Nemaš račun?{" "}
-            <a href="/register">
+            <Link href="/register">
               <strong>Registriraj se</strong>
-            </a>
+            </Link>
           </p>
         </div>
       </div>
