@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
+import { authErrorMessage } from "../../lib/auth-messages";
 
 export default function RegisterPage() {
   const [role, setRole] = useState("customer");
@@ -9,6 +10,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -42,7 +44,7 @@ export default function RegisterPage() {
     setLoading(false);
 
     if (error) {
-      setMessage(error.message);
+      setMessage(authErrorMessage(error, "Registracija trenutačno nije moguća."));
       return;
     }
 
@@ -107,14 +109,24 @@ export default function RegisterPage() {
 
             <label>
               Lozinka
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-                autoComplete="new-password"
-              />
+              <div className="passwordField">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  className="passwordToggle"
+                  onClick={() => setShowPassword((current) => !current)}
+                >
+                  {showPassword ? "Sakrij" : "Prikaži"}
+                </button>
+              </div>
+              <small>Najmanje 6 znakova.</small>
             </label>
 
             <button className="button" type="submit" disabled={loading}>
@@ -122,7 +134,7 @@ export default function RegisterPage() {
             </button>
           </form>
 
-          {message && <p style={{ marginTop: 18 }}>{message}</p>}
+          {message && <p className="formMessage" aria-live="polite">{message}</p>}
 
           <p className="muted" style={{ marginTop: 24 }}>
             Već imaš račun?{" "}
