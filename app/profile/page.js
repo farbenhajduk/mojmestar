@@ -120,16 +120,11 @@ export default function ProfilePage() {
 
     try {
       const {
-        data: authData,
-        error: authError
-      } = await supabase.auth.getUser();
-
-      if (authError) {
-        throw authError;
-      }
+        data: authData
+      } = await supabase.auth.getSession();
 
       const authUser =
-        authData?.user || null;
+        authData?.session?.user || null;
 
       if (!authUser) {
         setUser(null);
