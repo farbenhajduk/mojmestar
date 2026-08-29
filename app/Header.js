@@ -172,21 +172,14 @@ export default function Header() {
 
     async function loadUser() {
       const {
-        data,
-        error
+        data
       } =
         await supabase.auth
-          .getUser();
-
-      if (error) {
-        console.error(
-          "Auth error:",
-          error
-        );
-      }
+          .getSession();
 
       const authUser =
-        data?.user || null;
+        data?.session?.user ||
+        null;
 
       activeUserId =
         authUser?.id || null;
